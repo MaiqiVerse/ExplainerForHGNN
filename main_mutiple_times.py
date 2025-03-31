@@ -13,13 +13,13 @@ from utils import str2bool
 
 def getargs():
     parser = argparse.ArgumentParser(description='Explainable AI')
-    parser.add_argument('--dataset', type=str, default='./data/ACM',
+    parser.add_argument('--dataset', type=str, default='../data/ACM',
                         help='Path to dataset, the folder name should be the same as the dataset name')
-    parser.add_argument('--model', type=str, default='HAN',
+    parser.add_argument('--model', type=str, default='HAN_GCN',
                         help='Model to use.')
     parser.add_argument('--explainer', type=str, default='GNNExplainerMeta',
                         help='Explainer to use')
-    parser.add_argument('--random_seed', type=int, nargs='+', default=[0],
+    parser.add_argument('--random_seed', type=int, nargs='+', default=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19],
                         help='Random seed. You can try multiple seeds to get overall performance')
     parser.add_argument('--device', type=int, default=0,
                         help='GPU device')
@@ -53,14 +53,14 @@ def getargs_optional(parser):
                         help='Keys to keep in explanation')
     parser.add_argument('--start_time', type=int, default=None,
                         help='Start time for running')
-    parser.add_argument('--explain_max_nodes', type=int, default=None,
+    parser.add_argument('--explain_max_nodes', type=int, default=100,
                         help='Max number of nodes to explain')
     parser.add_argument('--load_model', type=str2bool, default=False,
                         help='if other explanation model has been run, you can set' + \
                              ' True to load the existing model. ' + \
                              'It will try to load the model from the' + \
                              'same path as the model config')
-    parser.add_argument('--load_dataset', type=str2bool, default=False,
+    parser.add_argument('--load_dataset', type=str2bool, default=True,
                         help='enable to load the existing dataset. If not exist, ' + \
                              'it will try to save the dataset.' + \
                              'It is recommended if you allow shuffling' + \
@@ -68,7 +68,7 @@ def getargs_optional(parser):
                              ' it will double the storage usage. If you want to' + \
                              ' just save the shuffled test label, you can' + \
                              ' set only_load_test_label_shuffle to True')
-    parser.add_argument('--only_load_test_label_shuffle', type=str2bool, default=False,
+    parser.add_argument('--only_load_test_label_shuffle', type=str2bool, default=True,
                         help='only load test label shuffle. available only if' + \
                              ' load_dataset is True')
     return parser
