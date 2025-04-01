@@ -172,13 +172,23 @@ def full_feature_mask_hard(feature_mask, explainer, opposite=False, separate=Tru
                 return list(
                     torch.split(feature_mask_hard, [len(fm) for fm in feature_mask]))
         top_k = int(top_k * torch.numel(feature_mask))
-        indices = torch.topk(feature_mask, top_k).indices
+        # if the shape of feature_mask is 2D, we need to flatten it first
+        flatten = False
+        ori_shape = None
+        if len(feature_mask.shape) == 2:
+            ori_shape = feature_mask.shape
+            feature_mask = feature_mask.flatten()
+            flatten = True
+        indices = torch.sort(feature_mask, descending=True)[1][:top_k]
+
         if opposite:
             feature_mask_hard = torch.ones_like(feature_mask)
             feature_mask_hard[indices] = 0
         else:
             feature_mask_hard = torch.zeros_like(feature_mask)
             feature_mask_hard[indices] = 1
+        if flatten:
+            feature_mask_hard = feature_mask_hard.reshape(ori_shape)
         return feature_mask_hard
 
     else:
