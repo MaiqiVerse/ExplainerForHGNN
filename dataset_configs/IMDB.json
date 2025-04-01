@@ -1,5 +1,5 @@
 {
   "check_data_size": true,
-  "labels": "./data/IMDB/labels_5_fold_cross_validation_0.pkl",
+  "labels": "../data/IMDB/labels_5_fold_cross_validation_0.pkl",
   "test_label_shuffle": false
 }

@@ -1,5 +1,5 @@
 {
   "check_data_size": true,
-  "labels": "./data/ACM/labels_5_fold_cross_validation_0.pkl",
+  "labels": "../data/ACM/labels_5_fold_cross_validation_0.pkl",
   "test_label_shuffle": false
 }
