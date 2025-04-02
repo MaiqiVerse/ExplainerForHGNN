@@ -240,6 +240,30 @@ class RandomExplainerCore(ExplainerCore):
                     else:
                         feature_mask_device = feature_mask.to(self.device_string)
                         features = features * feature_mask_device.unsqueeze(1)
+                elif self.config.get('mask_type', "edge_mask") == "edge_feature_mask":
+                    if self.config.get('use_meta',
+                                       False) and model.support_multi_features:
+                        device = self.device_string
+                        feature_mask_device = [mask.to(device) for mask in feature_mask]
+                        features = [features * feature_mask_device[i] for i in
+                                    range(len(features))]
+                    else:
+                        feature_mask_device = feature_mask.to(self.device_string)
+                        features = features * feature_mask_device
+                elif self.config.get('mask_type', "edge_mask") == "edge_node_mask":
+                    if self.config.get('use_meta',
+                                       False) and model.support_multi_features:
+                        device = self.device_string
+                        feature_mask_device = [mask.to(device) for mask in feature_mask]
+                        features = [features * feature_mask_device[i].unsqueeze(1) for i in
+                                    range(len(features))]
+                    else:
+                        feature_mask_device = feature_mask.to(self.device_string)
+                        features = features * feature_mask_device.unsqueeze(1)
+                else:
+                    raise ValueError('Invalid mask_type: {}'.format(
+                        self.config.get('mask_type', "edge_mask")))
+
             return gs, features
 
         return custom_input_handle_fn
