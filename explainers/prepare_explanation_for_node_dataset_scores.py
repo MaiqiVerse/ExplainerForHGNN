@@ -175,7 +175,7 @@ def full_feature_mask_hard(feature_mask, explainer, opposite=False, separate=Tru
         # if the shape of feature_mask is 2D, we need to flatten it first
         flatten = False
         ori_shape = None
-        if len(feature_mask.shape) == 2:
+        if len(feature_mask.shape) > 1:
             ori_shape = feature_mask.shape
             feature_mask = feature_mask.flatten()
             flatten = True

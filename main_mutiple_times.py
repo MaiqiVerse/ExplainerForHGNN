@@ -37,6 +37,9 @@ def getargs_optional(parser):
     parser.add_argument('--ensure_reproducibility', action='store_true',
                         default=False,
                         help='Ensure reproducibility')
+    parser.add_argument('--save_explanation', action='store_true',
+                        default=False,
+                        help='Save explanation')
     parser.add_argument('--save_attention', action='store_true',
                         default=False,
                         help='Save attention weights')
@@ -125,7 +128,9 @@ def train_model(model_name, dataset_path, device, dataset_configs=None,
     return model
 
 
-def explain(model, explainer_name, device, explainer_configs=None, minimize=False,
+def explain(model, explainer_name, device, explainer_configs=None,
+            save_explanation=False,
+            minimize=False,
             filter_keys=None,
             max_nodes=None
             ):
@@ -140,15 +145,16 @@ def explain(model, explainer_name, device, explainer_configs=None, minimize=Fals
     for key, value in result.items():
         print(f"{key}: {value}")
     print("----------------")
-    if minimize:
-        minimize_keys = ['edge_mask', 'node_id']
-        if explainer_name in ['GradExplainerMeta', 'GradExplainerOriginal']:
-            minimize_keys.append('node_mask')
-        explainer.save_explanation(filter_keys=minimize_keys)
-    elif filter_keys is not None and len(filter_keys) > 0:
-        explainer.save_explanation(filter_keys=filter_keys)
-    else:
-        explainer.save_explanation()
+    if save_explanation:
+        if minimize:
+            minimize_keys = ['edge_mask', 'node_id']
+            if explainer_name in ['GradExplainerMeta', 'GradExplainerOriginal']:
+                minimize_keys.append('node_mask')
+            explainer.save_explanation(filter_keys=minimize_keys)
+        elif filter_keys is not None and len(filter_keys) > 0:
+            explainer.save_explanation(filter_keys=filter_keys)
+        else:
+            explainer.save_explanation()
     return explainer
 
 
@@ -261,6 +267,7 @@ def main():
             else:
                 model.save_attention()
         explainer = explain(model, args.explainer, args.device, explainer_configs,
+                            save_explanation=args.save_explanation,
                             minimize=args.minimize_explanation,
                             filter_keys=args.explanation_keep_keys,
                             max_nodes=args.explain_max_nodes)
