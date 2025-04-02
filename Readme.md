@@ -23,17 +23,15 @@ we will use them.
 
 ## Performance
 
-Example results for Explainers on the HAN model with GCN on the ACM dataset:
+Example results for Some of Explainers on the HAN model with GCN on the ACM dataset:
 
+### Results of explanation models on HAN-GCN model for ACM dataset (%)
 
-| **Model**                | **Fidelity- (↓)** | **Fidelity+ (↑)** | **Characterization Score (↑)** | **Macro-F1 (↑)** | **Micro-F1 (↑)** |
-| ------------------------ | ------------------ | ------------------ | ------------------------------- | ----------------- | ----------------- |
-| **GNNExplainerMeta**     | $22.00 \pm 5.45$   | $42.95 \pm 7.53$   | $36.10 \pm 9.07$                | $67.06 \pm 5.87$  | $69.85 \pm 5.00$  |
-| **GNNExplainerOriginal** | $21.80 \pm 5.05$   | $40.10 \pm 4.84$   | $32.84 \pm 5.86$                | $65.61 \pm 4.95$  | $68.75 \pm 4.86$  |
+| Model                           | 1 - Fidelity\_-      | Fidelity\_+         | Characterization Score | Macro-F1          | Micro-F1          |
+|--------------------------------|----------------------|---------------------|-------------------------|-------------------|-------------------|
+| GNNExplainer (Meta-Path)       | 90.15 ± 2.99         | 45.50 ± 6.62        | 60.20 ± 6.10            | 82.77 ± 3.29      | 82.50 ± 3.28      |
+| Grad (Meta-Path)               | 96.40 ± 1.50         | 35.80 ± 2.42        | 52.16 ± 2.57            | 88.22 ± 1.43      | 88.05 ± 1.43      |
 
-Normally, we argue that those explainers with "-Meta" which are the modified version for the heterogeneous graph, have
-better performance than the original version. This is because Meta version treats each subgraph separately, while the
-original version treats the whole graph as a single homogeneous graph.
 
 ## Dataset
 
