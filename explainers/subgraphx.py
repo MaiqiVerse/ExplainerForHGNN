@@ -97,13 +97,17 @@ class SimpleMCTS:
 
     def _check_connected(self, graphs):
         results = []
-        check_result = True
         for i in graphs:
+            flag = False
             for c in nx.connected_components(i):
                 if self.target_node in c:
+                    flag = True
                     results.append(c)
-            else:
-                check_result = False
+            if not flag:
+                results.append([self.target_node])
+        check_result = not all(
+            len(i) == 1 for i in results
+        )
         return check_result, results
 
     def _filter_by_degree(self, coalition):
