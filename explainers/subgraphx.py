@@ -47,7 +47,7 @@ class SimpleMCTSNode:
 
 
 class SimpleMCTS:
-    def __init__(self, graph: List[nx.Graph], num_nodes: int, target_node: int, score_func,
+    def __init__(self, graph: List[nx.Graph], target_node: int, score_func,
                  c_puct=10.0, min_size=5, rollout_limit=20, coalition_max_size=None
                  ):
         self.full_graph = graph
@@ -59,8 +59,7 @@ class SimpleMCTS:
 
         self.visited_states = {}
 
-        full_nodes = list(range(num_nodes))
-        self.root = SimpleMCTSNode(full_nodes)
+        self.root = SimpleMCTSNode([list(i.nodes()) for i in self.full_graph])
         self._register_node(self.root)
         self.coalition_max_size = coalition_max_size
 
@@ -405,7 +404,7 @@ class SubgraphXCore(ExplainerCore):
             ][0])
             graphs.append(nx_graph)
         self.mcts_tree = SimpleMCTS(
-            graphs, len(self.extract_neighbors_input()[1]), self.mapping_node_id(), reward_func,  # type: ignore
+            graphs, self.mapping_node_id(), reward_func,  # type: ignore
             c_puct=self.config.get('c_puct', 10.0),
             min_size=self.config.get('min_size', 5),
             rollout_limit=self.config.get('rollout_limit', 20))
