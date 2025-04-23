@@ -434,7 +434,7 @@ class SubgraphXCore(ExplainerCore):
                 # use the model to get the prediction
                 output = self.model.custom_forward(handle_fn)
                 output = F.softmax(output, dim=-1)
-                return output[self.mapping_node_id(), label].item()
+                return output[self.mapping_node_id(), label]
 
         return value_func
 
