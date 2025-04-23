@@ -122,6 +122,7 @@ class SimpleMCTS:
             result[i] = [x[0] for x in result[i]]
             if len(result[i]) > self.coalition_max_size:
                 result[i] = result[i][:self.coalition_max_size]
+        result = [x[0] for x in result]
         return result
 
     def _get_subgraph(self, coalition):
@@ -177,9 +178,9 @@ class SimpleMCTS:
 
     def check_coalition_size(self, coalition):
         for i in coalition:
-            if len(i) <= self.min_size:
-                return False
-        return True
+            if len(i) > self.min_size:
+                return True
+        return False
 
     def run(self):
         for _ in range(self.rollout_limit):
