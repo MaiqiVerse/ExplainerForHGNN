@@ -414,13 +414,15 @@ class SubgraphXCore(ExplainerCore):
             # use the actual label
             label = self.model.labels[self.node_id]
         else:
+            gs_tmp, features_tmp = self.extract_neighbors_input()
+            handle_fn = lambda model: (gs_tmp, features_tmp)
             with torch.no_grad():
-                temp = self.model.custom_forward(self.extract_neighbors_input)
+                temp = self.model.custom_forward(handle_fn)
                 label = temp.argmax(-1)[self.mapping_node_id()]
 
         def value_func(gs, features):
             # use lambda to create a function that return gs and features
-            handle_fn = lambda: (gs, features)
+            handle_fn = lambda model: (gs, features)
             with torch.no_grad():
                 # use the model to get the prediction
                 output = self.model.custom_forward(handle_fn)
