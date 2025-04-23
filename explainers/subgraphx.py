@@ -499,8 +499,8 @@ class SubgraphXCore(ExplainerCore):
             include_mask = include_mask.float()
             exclude_mask = exclude_mask.float()
 
-            new_features_include.append(features * include_mask)
-            new_features_exclude.append(features * exclude_mask)
+            new_features_include.append(features * include_mask.view(-1, 1))
+            new_features_exclude.append(features * exclude_mask.view(-1, 1))
         include_values = value_func(gs, new_features_include)
         exclude_values = value_func(gs, new_features_exclude)
         return include_values - exclude_values
