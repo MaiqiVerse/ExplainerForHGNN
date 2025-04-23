@@ -412,7 +412,8 @@ class SubgraphXCore(ExplainerCore):
             graphs, self.mapping_node_id(), reward_func,  # type: ignore
             c_puct=self.config.get('c_puct', 10.0),
             min_size=self.config.get('min_size', 5),
-            rollout_limit=self.config.get('rollout_limit', 20))
+            rollout_limit=self.config.get('rollout_limit', 20),
+            coalition_max_size=self.config.get('coalition_max_size', 14))
         self.mcts_tree.run()
 
     def _prepare_value_func(self):

@@ -10,6 +10,7 @@
   "rollout_limit": 20,
   "sample_num": 1000,
   "use_actual_label": false,
+  "coalition_max_size": 14,
   "eval_metrics": [
     "fidelity_neg",
     "fidelity_pos",
