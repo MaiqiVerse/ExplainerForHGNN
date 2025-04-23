@@ -30,6 +30,8 @@ __all__ = [
     "RandomNodeMaskExplainer",
     "RandomEdgeAndFeatureMaskExplainer",
     "RandomEdgeAndNodeMaskExplainer",
+    "SubgraphX",
+    "SubgraphXCore",
 ]
 
 from .grad import GradExplainerMeta, GradExplainer, GradExplainerOriginal, \
@@ -49,6 +51,7 @@ from .random import RandomExplainer, RandomExplainerCore, RandomEdgeMaskExplaine
     RandomEdgeAndNodeMaskExplainer
 from .cebased import CEBased, CEBasedCore
 from .gradcam import GradCAM, GradCAMCore, GradCAMMeta, GradCAMOriginal
+from .subgraphx import SubgraphX, SubgraphXCore
 import os
 
 
@@ -110,6 +113,8 @@ def load_explainer(explainer_name, model_name, dataset_name, explainer_config=No
         return GradCAMMeta(config)
     elif explainer_name == "GradCAMOriginal":
         return GradCAMOriginal(config)
+    elif explainer_name == "SubgraphX":
+        return SubgraphX(config)
     # elif explainer_name == "SAExplainer":
     #     return SAExplainer(config)
     # elif explainer_name == "GOAtExplainer":
