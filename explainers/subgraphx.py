@@ -161,7 +161,7 @@ class SimpleMCTS:
         if node is None:
             node = self.root
 
-        if self.check_coalition_size(node.coalition):
+        if not self.check_coalition_size(node.coalition):
             return self.simulate(node)
 
         if not node.children:
@@ -178,7 +178,7 @@ class SimpleMCTS:
 
     def check_coalition_size(self, coalition):
         for i in coalition:
-            if len(i) < self.min_size:
+            if len(i) <= self.min_size:
                 return False
         return True
 
@@ -400,6 +400,9 @@ class SubgraphXCore(ExplainerCore):
         for g in self.extract_neighbors_input()[0]:
             nx_graph = g.to_dense().cpu().numpy()
             nx_graph = nx.from_numpy_array(nx_graph)
+            nx_graph = nx_graph.subgraph([
+                i for i in list(nx.connected_components(nx_graph)) if self.mapping_node_id() in i
+            ][0])
             graphs.append(nx_graph)
         self.mcts_tree = SimpleMCTS(
             graphs, len(self.extract_neighbors_input()[1]), self.mapping_node_id(), reward_func,  # type: ignore
