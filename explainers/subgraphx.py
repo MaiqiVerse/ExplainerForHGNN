@@ -473,7 +473,7 @@ class SubgraphXCore(ExplainerCore):
                 exclude_mask[selected_nodes] = 1.0
                 exclude_mask[self.mapping_node_id()] = 1.0
                 include_mask = exclude_mask.copy()
-                include_mask[coalition] = 1.0
+                include_mask[coalition_single_graph] = 1.0
                 exclude_masks.append(exclude_mask)
                 include_masks.append(include_mask)
 
