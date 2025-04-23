@@ -178,9 +178,9 @@ class SimpleMCTS:
 
     def check_coalition_size(self, coalition):
         for i in coalition:
-            if len(i) <= self.min_size:
-                return False
-        return True
+            if len(i) > self.min_size:
+                return True
+        return False
 
     def run(self):
         for _ in range(self.rollout_limit):
