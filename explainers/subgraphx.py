@@ -517,7 +517,7 @@ class SubgraphXCore(ExplainerCore):
             marginal_distribution = self._get_marginal_contribution_single(
                 (include_masks, exclude_masks), value_func)
             results.append(marginal_distribution)
-        return torch.cat(results, dim=0)
+        return torch.stack(results, dim=0)
 
     def visualize(self):
         # !TODO: finish it, but not now
