@@ -126,8 +126,8 @@ class SimpleMCTS:
 
     def _get_subgraph(self, coalition):
         result = []
-        for i in coalition:
-            tmp = self.full_graph[i].subgraph(i)
+        for index, i in enumerate(coalition):
+            tmp = self.full_graph[index].subgraph(i)
             result.append(tmp)
         return result
 
