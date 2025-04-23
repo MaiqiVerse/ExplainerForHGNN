@@ -79,13 +79,6 @@ def get_top_k_edge_mask_core(edge_mask, top_k, opposite=False, separate=True):
 
 
 def get_masked_gs_hard(explainer, opposite=False):
-    # if explainer.config['edge_mask_hard_method'] == 'original':
-    #     if getattr(explainer, 'masked', None) is None:
-    #         raise ValueError('masked is not found')
-    #     if not opposite:
-    #         return explainer.masked['masked_gs']
-    #     else:
-    #         return [1 - g.coalesce() for g in explainer.masked['opposite_masked_gs']]
     edge_mask_hard = get_edge_mask_hard(explainer, opposite)
     gs = explainer.neighbor_input['gs']
     masked_gs_hard = []

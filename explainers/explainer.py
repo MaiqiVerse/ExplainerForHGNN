@@ -242,7 +242,7 @@ class Explainer:
     def node_level_explain(self, **kwargs):
         pass
 
-    def graph_level_explain(self):
+    def graph_level_explain(self, **kwargs):
         pass
 
     def construct_explanation(self, result):
