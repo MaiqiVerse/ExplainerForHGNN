@@ -12,8 +12,8 @@
   "use_actual_label": false,
   "coalition_max_size": 7,
   "use_fast": true,
-  "steps_fast": [20, 10],
-  "threshold": 20,
+  "steps_fast": 20,
+  "threshold": 40,
   "eval_metrics": [
     "fidelity_neg",
     "fidelity_pos",
