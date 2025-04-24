@@ -18,7 +18,9 @@ import numpy as np
 
 import math
 import networkx as nx
-from typing import List, Tuple
+from typing import List, Tuple, Union
+import random
+import copy
 
 
 def mean(iterable):
@@ -47,13 +49,16 @@ class SimpleMCTSNode:
 
 
 class SimpleMCTS:
-    def __init__(self, graph: List[nx.Graph], target_node: int, score_func,
-                 c_puct=10.0, min_size=5, rollout_limit=20, coalition_max_size=None
+    def __init__(self, graph: List[nx.Graph], target_node: int, score_func, node_groups,
+                 c_puct=10.0, min_size: Union[int | List[int] | Tuple[int]] = 5, rollout_limit=20,
+                 coalition_max_size=None
                  ):
         self.full_graph = graph
         self.target_node = target_node
         self.score_func = score_func
         self.c_puct = c_puct
+        if isinstance(min_size, int):
+            min_size = (min_size, min_size)
         self.min_size = min_size
         self.rollout_limit = rollout_limit
 
@@ -62,6 +67,8 @@ class SimpleMCTS:
         self.root = SimpleMCTSNode([list(i.nodes()) for i in self.full_graph])
         self._register_node(self.root)
         self.coalition_max_size = coalition_max_size
+
+        self.node_groups = node_groups
 
     def _key(self, coalition):
         result_str = ''
@@ -122,7 +129,7 @@ class SimpleMCTS:
                 result[i].append(((i, idx), degree))
 
         for i in range(len(result)):
-            result[i] = sorted(result[i], key=lambda x: x[1], reverse=True)
+            result[i] = sorted(result[i], key=lambda x: x[1], reverse=False)
             result[i] = [x[0] for x in result[i]]
             if len(result[i]) > self.coalition_max_size:
                 result[i] = result[i][:self.coalition_max_size]
@@ -181,8 +188,8 @@ class SimpleMCTS:
         return value
 
     def check_coalition_size(self, coalition):
-        for i in coalition:
-            if len(i) > self.min_size:
+        for index, i in enumerate(coalition):
+            if len(i) > self.min_size[index]:
                 return True
         return False
 
@@ -199,7 +206,230 @@ class SimpleMCTS:
         selected_node = None
         for i in range(len(all_nodes)):
             check = [
-                len(all_nodes[i].coalition[j]) / len(self.full_graph[i]) < ratio
+                len(all_nodes[i].coalition[j]) / self.node_groups[i] < ratio
+                for j in range(len(all_nodes[i].coalition))
+            ]
+            if all(check):
+                selected_node = all_nodes[i]
+                break
+        if selected_node is None:
+            raise ValueError('No node with coalition size less than max_ratio')
+        return selected_node.coalition
+
+    def collect_all_nodes(self):
+        stack = [self.root]
+        all_nodes = []
+        while stack:
+            node = stack.pop()
+            all_nodes.append(node)
+            stack.extend(node.children)
+        return all_nodes
+
+
+class SimpleMCTSFast:
+    def __init__(self, graph: List[nx.Graph], target_node: int, score_func, node_groups,
+                 c_puct=10.0, min_size: Union[int | List[int] | Tuple[int]] = 5, rollout_limit=20,
+                 coalition_max_size=None,
+                 steps_fast=(20, 10), ratio=0.25, threshold=20
+                 ):
+        self.full_graph = graph
+        self.target_node = target_node
+        self.score_func = score_func
+        self.c_puct = c_puct
+        if isinstance(min_size, int):
+            min_size = (min_size, min_size)
+        self.min_size = min_size
+        self.rollout_limit = rollout_limit
+
+        self.visited_states = {}
+
+        self.root = SimpleMCTSNode([list(i.nodes()) for i in self.full_graph])
+        self._register_node(self.root)
+        self.coalition_max_size = coalition_max_size
+        self.steps_fast = steps_fast
+        self.ratio = ratio
+        self.threshold = threshold
+
+        self.node_groups = node_groups
+        self._all_node_num = sum(self.node_groups)
+        self._ratio_num = self._all_node_num * self.ratio
+        self._threshold_ratio = self.threshold + self._ratio_num
+
+    def _key(self, coalition):
+        result_str = ''
+        for i in coalition:
+            result_str += str(sorted(i))
+        return result_str
+
+    def _register_node(self, node):
+        self.visited_states[self._key(node.coalition)] = node
+
+    def expand(self, node):
+        expand_nodes_groups = self._group_filter_by_degree(node.coalition)
+
+        for new_coalition in expand_nodes_groups:
+            # new_coalition = self._exclude_node_group(node.coalition, group)
+            subgraph = self._get_subgraph(new_coalition)
+
+            check_result, final_coalition = self._check_connected(subgraph)
+            if not check_result:
+                continue
+
+            if self.check_coalition_size(final_coalition):
+                key = self._key(final_coalition)
+                if key in self.visited_states:
+                    new_node = self.visited_states[key]
+                else:
+                    new_node = SimpleMCTSNode(final_coalition, parent=node)
+                    new_node.P = self.score_func(final_coalition)
+                    self._register_node(new_node)
+
+                if new_node not in node.children:
+                    node.children.append(new_node)
+
+    def _check_connected(self, graphs):
+        results = []
+        for i in graphs:
+            flag = False
+            for c in nx.connected_components(i):
+                if self.target_node in c:
+                    flag = True
+                    results.append(list(c))
+            if not flag:
+                results.append([self.target_node])
+        check_result = not all(
+            len(i) == 1 for i in results
+        )
+        return check_result, results
+
+    def _group_filter_by_degree(self, coalition):
+        # check coalition size to choose fast or slow
+        if sum(len(i) for i in coalition) < self._threshold_ratio:
+            return self._filter_by_degree_group_filter_by_degree_slow(coalition)
+        else:
+            return self._filter_by_degree_group_filter_by_degree_fast(coalition)
+
+    def _filter_by_degree_group_filter_by_degree_slow(self, coalition):
+        if self.coalition_max_size is None:
+            return [self._exclude_node(coalition, i, idx) for i, idx in self._iterate_coalition(coalition)]
+        all_nodes = list(self._iterate_coalition(coalition))
+        result = [[] for _ in range(len(coalition))]
+        subgraph = self._get_subgraph(coalition)
+        for i, idx in all_nodes:
+            degree = self._get_degree(subgraph, (i, idx))
+            if degree > 0:
+                result[i].append(((i, idx), degree))
+        for i in range(len(result)):
+            result[i] = sorted(result[i], key=lambda x: x[1], reverse=False)
+            result[i] = [x[0] for x in result[i]]
+            if len(result[i]) > self.coalition_max_size:
+                result[i] = result[i][:self.coalition_max_size]
+        result = [i for x in result for i in x]
+        return [self._exclude_node(coalition, i, idx) for i, idx in result]
+
+    def _filter_by_degree_group_filter_by_degree_fast(self, coalition):
+        # randomly select nodes from the coalition to groups (size: steps_fast)
+        # and then filter by degree (average degree)
+        final_result = []
+        for i in range(len(coalition)):
+            current_coalition = copy.deepcopy(coalition[i])
+            random.shuffle(current_coalition)
+            if len(current_coalition) % self.steps_fast != 0:
+                current_coalition = current_coalition[:len(current_coalition) // self.steps_fast * self.steps_fast]
+            separate_result = [
+                current_coalition[i:i + self.steps_fast] for i in range(0, len(current_coalition), self.steps_fast)
+            ]
+            tmp_subgraph = self.full_graph[i].subgraph(current_coalition)
+            separate_result_degree = []
+            for j in separate_result:
+                tmp_result = []
+                for k in j:
+                    tmp_result.append(tmp_subgraph.degree[k])
+                tmp_result = mean(tmp_result)
+                separate_result_degree.append((j, tmp_result))
+            separate_result_degree = sorted(separate_result_degree, key=lambda x: x[1], reverse=False)
+            separate_result_degree = [x[0] for x in separate_result_degree]
+            if self.coalition_max_size is not None and len(separate_result_degree) > self.coalition_max_size:
+                separate_result_degree = separate_result_degree[:self.coalition_max_size]
+
+            # convert to coalition
+            for j in separate_result_degree:
+                coalition_copy = copy.deepcopy(coalition)
+                coalition_copy[i] = [x for x in coalition_copy[i] if x not in j]
+                final_result.append(coalition_copy)
+        return final_result
+
+    def _get_subgraph(self, coalition):
+        result = []
+        for index, i in enumerate(coalition):
+            tmp = self.full_graph[index].subgraph(i)
+            result.append(tmp)
+        return result
+
+    def _get_degree(self, graphs: List[nx.Graph], position: Tuple[int, int]):
+        graph: nx.Graph = graphs[position[0]]
+        return graph.degree[position[1]]  # type: ignore
+
+    def _iterate_coalition(self, coalition):
+        for i in range(len(coalition)):
+            for j in coalition[i]:
+                yield (i, j)
+
+    def _exclude_node(self, coalition, i, idx):
+        new_coalition = []
+        for j in range(len(coalition)):
+            if j != i:
+                new_coalition.append(coalition[j])
+            else:
+                new_coalition.append([x for x in coalition[j] if x != idx])
+        return new_coalition
+
+    def simulate(self, node):
+        return node.P
+
+    def backpropagate(self, node, value):
+        node.N += 1
+        node.W += value
+
+    def rollout(self, node=None):
+        if node is None:
+            node = self.root
+
+        if not self.check_coalition_size(node.coalition):
+            return self.simulate(node)
+
+        if not node.children:
+            self.expand(node)
+
+        if node.children:
+            node_next = node.best_child(self.c_puct)
+            value = self.rollout(node_next)
+        else:
+            value = self.simulate(node)
+
+        self.backpropagate(node, value)
+        return value
+
+    def check_coalition_size(self, coalition):
+        for index, i in enumerate(coalition):
+            if len(i) > self.min_size[index]:
+                return True
+        return False
+
+    def run(self):
+        for _ in range(self.rollout_limit):
+            self.rollout()
+
+    def get_explained_nodes(self):
+        return sorted(self.collect_all_nodes(), key=lambda n: n.P, reverse=True)
+
+    def get_explanation_with_max_ratio(self, ratio):
+        all_nodes = self.collect_all_nodes()
+        all_nodes = sorted(all_nodes, key=lambda n: n.P, reverse=True)
+        selected_node = None
+        for i in range(len(all_nodes)):
+            check = [
+                len(all_nodes[i].coalition[j]) / self.node_groups[i] < ratio
                 for j in range(len(all_nodes[i].coalition))
             ]
             if all(check):
@@ -400,20 +630,38 @@ class SubgraphXCore(ExplainerCore):
         self.feature_mask = features_list
 
     def _mcts(self, reward_func):
+        orig_graph = []
         graphs = []
         for g in self.extract_neighbors_input()[0]:
             nx_graph = g.to_dense().cpu().numpy()
             nx_graph = nx.from_numpy_array(nx_graph)
-            nx_graph = nx_graph.subgraph([
-                i for i in list(nx.connected_components(nx_graph)) if self.mapping_node_id() in i
-            ][0])
+            orig_graph.append(nx_graph)
+            nx_graph = nx_graph.subgraph([i for i in list(nx.connected_components(nx_graph)) if
+                                          self.mapping_node_id() in i
+                                          ][0])
             graphs.append(nx_graph)
-        self.mcts_tree = SimpleMCTS(
-            graphs, self.mapping_node_id(), reward_func,  # type: ignore
-            c_puct=self.config.get('c_puct', 10.0),
-            min_size=self.config.get('min_size', 5),
-            rollout_limit=self.config.get('rollout_limit', 20),
-            coalition_max_size=self.config.get('coalition_max_size', 14))
+        node_groups = [len(i) for i in orig_graph]
+        if not self.config.get('use_fast', True):
+            self.mcts_tree = SimpleMCTS(
+                graphs, self.mapping_node_id(), reward_func,  # type: ignore
+                node_groups,
+                c_puct=self.config.get('c_puct', 10.0),
+                min_size=[int(i * self.config.get('top_k_for_feature_mask', 0.25) - self.config.get('min_size', 5)) for i in
+                          node_groups],
+                rollout_limit=self.config.get('rollout_limit', 10),
+                coalition_max_size=self.config.get('coalition_max_size', 7))
+        else:
+            self.mcts_tree = SimpleMCTSFast(
+                graphs, self.mapping_node_id(), reward_func,  # type: ignore
+                node_groups,
+                c_puct=self.config.get('c_puct', 10.0),
+                min_size=[int(i * self.config.get('top_k_for_feature_mask', 0.25) - self.config.get('min_size', 5)) for i in
+                          node_groups],
+                rollout_limit=self.config.get('rollout_limit', 10),
+                coalition_max_size=self.config.get('coalition_max_size', 7),
+                steps_fast=self.config.get('steps_fast', (20, 10)),
+                ratio=self.config.get('top_k_for_feature_mask', 0.25),
+                threshold=self.config.get('threshold', 20))
         self.mcts_tree.run()
 
     def _prepare_value_func(self):
@@ -450,7 +698,7 @@ class SubgraphXCore(ExplainerCore):
                 'Graph level explanation is not implemented yet')
 
     def _node_level_mc_l_shapley(self, coalition, value_func):
-        sample_num = self.config.get('sample_num', 1000)
+        sample_num = self.config.get('sample_num', 100)
 
         # get current neighbors
         neighbors_num = len(self.used_nodes)
