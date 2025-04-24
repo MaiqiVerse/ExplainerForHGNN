@@ -186,7 +186,7 @@ class SimpleMCTS:
         return value
 
     def check_coalition_size(self, coalition):
-        return  sum(len(i) for i in coalition) > self.min_size
+        return sum(len(i) for i in coalition) > self.min_size
 
     def run(self):
         for _ in range(self.rollout_limit):
@@ -221,7 +221,7 @@ class SimpleMCTSFast:
     def __init__(self, graph: List[nx.Graph], target_node: int, score_func, node_groups,
                  c_puct=10.0, min_size=5, rollout_limit=20,
                  coalition_max_size=None,
-                 steps_fast=(20, 10), ratio=0.25, threshold=20
+                 steps_fast=20, ratio=0.25, threshold=40
                  ):
         self.full_graph = graph
         self.target_node = target_node
@@ -323,12 +323,14 @@ class SimpleMCTSFast:
         for i in range(len(coalition)):
             current_coalition = copy.deepcopy(coalition[i])
             random.shuffle(current_coalition)
-            if len(current_coalition) % self.steps_fast[i] != 0:
+            if len(current_coalition) % self.steps_fast != 0:
                 current_coalition = current_coalition[
-                                    :len(current_coalition) // self.steps_fast[i] * self.steps_fast[i]]
+                                    :len(current_coalition) // self.steps_fast * self.steps_fast]
+            if len(current_coalition) == 0:
+                continue
             separate_result = [
-                current_coalition[j:j + self.steps_fast[i]] for j in
-                range(0, len(current_coalition), self.steps_fast[i])
+                current_coalition[j:j + self.steps_fast] for j in
+                range(0, len(current_coalition), self.steps_fast)
             ]
             tmp_subgraph = self.full_graph[i].subgraph(current_coalition)
             separate_result_degree = []
@@ -630,9 +632,8 @@ class SubgraphXCore(ExplainerCore):
                 graphs, self.mapping_node_id(), reward_func,  # type: ignore
                 node_groups,
                 c_puct=self.config.get('c_puct', 10.0),
-                min_size=[int(i * self.config.get('top_k_for_feature_mask', 0.25) - self.config.get('min_size', 5)) for
-                          i in
-                          node_groups],
+                min_size=sum(node_groups) * self.config.get('top_k_for_feature_mask', 0.25) - self.config.get(
+                    'min_size', 5),
                 rollout_limit=self.config.get('rollout_limit', 10),
                 coalition_max_size=self.config.get('coalition_max_size', 7))
         else:
@@ -640,13 +641,13 @@ class SubgraphXCore(ExplainerCore):
                 graphs, self.mapping_node_id(), reward_func,  # type: ignore
                 node_groups,
                 c_puct=self.config.get('c_puct', 10.0),
-                min_size=[int(i * self.config.get('top_k_for_feature_mask', 0.25) - self.config.get('min_size', 5)) for
-                          i in node_groups],
+                min_size=sum(node_groups) * self.config.get('top_k_for_feature_mask', 0.25) - self.config.get(
+                    'min_size', 5),
                 rollout_limit=self.config.get('rollout_limit', 10),
                 coalition_max_size=self.config.get('coalition_max_size', 7),
-                steps_fast=self.config.get('steps_fast', (20, 10)),
+                steps_fast=self.config.get('steps_fast', 20),
                 ratio=self.config.get('top_k_for_feature_mask', 0.25),
-                threshold=self.config.get('threshold', 20))
+                threshold=self.config.get('threshold', 40))
         self.mcts_tree.run()
 
     def _prepare_value_func(self):
