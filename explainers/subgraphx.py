@@ -50,15 +50,13 @@ class SimpleMCTSNode:
 
 class SimpleMCTS:
     def __init__(self, graph: List[nx.Graph], target_node: int, score_func, node_groups,
-                 c_puct=10.0, min_size: Union[int | List[int] | Tuple[int]] = 5, rollout_limit=20,
+                 c_puct=10.0, min_size=5, rollout_limit=20,
                  coalition_max_size=None
                  ):
         self.full_graph = graph
         self.target_node = target_node
         self.score_func = score_func
         self.c_puct = c_puct
-        if isinstance(min_size, int):
-            min_size = (min_size, min_size)
         self.min_size = min_size
         self.rollout_limit = rollout_limit
 
@@ -188,10 +186,7 @@ class SimpleMCTS:
         return value
 
     def check_coalition_size(self, coalition):
-        for index, i in enumerate(coalition):
-            if len(i) > self.min_size[index]:
-                return True
-        return False
+        return  sum(len(i) for i in coalition) > self.min_size
 
     def run(self):
         for _ in range(self.rollout_limit):
@@ -205,11 +200,7 @@ class SimpleMCTS:
         all_nodes = sorted(all_nodes, key=lambda n: n.P, reverse=True)
         selected_node = None
         for i in range(len(all_nodes)):
-            check = [
-                len(all_nodes[i].coalition[j]) / self.node_groups[i] < ratio
-                for j in range(len(all_nodes[i].coalition))
-            ]
-            if all(check):
+            if sum(len(j) for j in all_nodes[i].coalition) < ratio * sum(self.node_groups):
                 selected_node = all_nodes[i]
                 break
         if selected_node is None:
@@ -228,7 +219,7 @@ class SimpleMCTS:
 
 class SimpleMCTSFast:
     def __init__(self, graph: List[nx.Graph], target_node: int, score_func, node_groups,
-                 c_puct=10.0, min_size: Union[int | List[int] | Tuple[int]] = 5, rollout_limit=20,
+                 c_puct=10.0, min_size=5, rollout_limit=20,
                  coalition_max_size=None,
                  steps_fast=(20, 10), ratio=0.25, threshold=20
                  ):
@@ -236,8 +227,6 @@ class SimpleMCTSFast:
         self.target_node = target_node
         self.score_func = score_func
         self.c_puct = c_puct
-        if isinstance(min_size, int):
-            min_size = (min_size, min_size)
         self.min_size = min_size
         self.rollout_limit = rollout_limit
 
@@ -413,10 +402,7 @@ class SimpleMCTSFast:
         return value
 
     def check_coalition_size(self, coalition):
-        for index, i in enumerate(coalition):
-            if len(i) > self.min_size[index]:
-                return True
-        return False
+        return sum(len(i) for i in coalition) > self.min_size
 
     def run(self):
         for _ in range(self.rollout_limit):
@@ -430,11 +416,7 @@ class SimpleMCTSFast:
         all_nodes = sorted(all_nodes, key=lambda n: n.P, reverse=True)
         selected_node = None
         for i in range(len(all_nodes)):
-            check = [
-                len(all_nodes[i].coalition[j]) / self.node_groups[i] < ratio
-                for j in range(len(all_nodes[i].coalition))
-            ]
-            if all(check):
+            if sum(len(j) for j in all_nodes[i].coalition) < ratio * self._all_node_num:
                 selected_node = all_nodes[i]
                 break
         if selected_node is None:
