@@ -334,10 +334,12 @@ class SimpleMCTSFast:
         for i in range(len(coalition)):
             current_coalition = copy.deepcopy(coalition[i])
             random.shuffle(current_coalition)
-            if len(current_coalition) % self.steps_fast != 0:
-                current_coalition = current_coalition[:len(current_coalition) // self.steps_fast * self.steps_fast]
+            if len(current_coalition) % self.steps_fast[i] != 0:
+                current_coalition = current_coalition[
+                                    :len(current_coalition) // self.steps_fast[i] * self.steps_fast[i]]
             separate_result = [
-                current_coalition[i:i + self.steps_fast] for i in range(0, len(current_coalition), self.steps_fast)
+                current_coalition[i:i + self.steps_fast[i]] for i in
+                range(0, len(current_coalition), self.steps_fast[i])
             ]
             tmp_subgraph = self.full_graph[i].subgraph(current_coalition)
             separate_result_degree = []
@@ -646,7 +648,8 @@ class SubgraphXCore(ExplainerCore):
                 graphs, self.mapping_node_id(), reward_func,  # type: ignore
                 node_groups,
                 c_puct=self.config.get('c_puct', 10.0),
-                min_size=[int(i * self.config.get('top_k_for_feature_mask', 0.25) - self.config.get('min_size', 5)) for i in
+                min_size=[int(i * self.config.get('top_k_for_feature_mask', 0.25) - self.config.get('min_size', 5)) for
+                          i in
                           node_groups],
                 rollout_limit=self.config.get('rollout_limit', 10),
                 coalition_max_size=self.config.get('coalition_max_size', 7))
@@ -655,8 +658,8 @@ class SubgraphXCore(ExplainerCore):
                 graphs, self.mapping_node_id(), reward_func,  # type: ignore
                 node_groups,
                 c_puct=self.config.get('c_puct', 10.0),
-                min_size=[int(i * self.config.get('top_k_for_feature_mask', 0.25) - self.config.get('min_size', 5)) for i in
-                          node_groups],
+                min_size=[int(i * self.config.get('top_k_for_feature_mask', 0.25) - self.config.get('min_size', 5)) for
+                          i in node_groups],
                 rollout_limit=self.config.get('rollout_limit', 10),
                 coalition_max_size=self.config.get('coalition_max_size', 7),
                 steps_fast=self.config.get('steps_fast', (20, 10)),
