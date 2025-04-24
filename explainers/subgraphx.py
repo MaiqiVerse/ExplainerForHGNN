@@ -338,7 +338,7 @@ class SimpleMCTSFast:
                 current_coalition = current_coalition[
                                     :len(current_coalition) // self.steps_fast[i] * self.steps_fast[i]]
             separate_result = [
-                current_coalition[i:i + self.steps_fast[i]] for i in
+                current_coalition[j:j + self.steps_fast[i]] for j in
                 range(0, len(current_coalition), self.steps_fast[i])
             ]
             tmp_subgraph = self.full_graph[i].subgraph(current_coalition)
