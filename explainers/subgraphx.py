@@ -142,16 +142,19 @@ class SimpleMCTS:
             result.append(tmp)
         return result
 
-    def _get_degree(self, graphs: List[nx.Graph], position: Tuple[int, int]):
+    @staticmethod
+    def _get_degree(graphs: List[nx.Graph], position: Tuple[int, int]):
         graph: nx.Graph = graphs[position[0]]
         return graph.degree[position[1]]  # type: ignore
 
-    def _iterate_coalition(self, coalition):
+    @staticmethod
+    def _iterate_coalition(coalition):
         for i in range(len(coalition)):
             for j in coalition[i]:
                 yield (i, j)
 
-    def _exclude_node(self, coalition, i, idx):
+    @staticmethod
+    def _exclude_node(coalition, i, idx):
         new_coalition = []
         for j in range(len(coalition)):
             if j != i:
@@ -160,10 +163,12 @@ class SimpleMCTS:
                 new_coalition.append([x for x in coalition[j] if x != idx])
         return new_coalition
 
-    def simulate(self, node):
+    @staticmethod
+    def simulate(node):
         return node.P
 
-    def backpropagate(self, node, value):
+    @staticmethod
+    def backpropagation(node, value):
         node.N += 1
         node.W += value
 
@@ -186,7 +191,7 @@ class SimpleMCTS:
         else:
             value = self.simulate(node)
 
-        self.backpropagate(node, value)
+        self.backpropagation(node, value)
         return value
 
     def check_coalition_size(self, coalition):
