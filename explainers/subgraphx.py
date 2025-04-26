@@ -394,9 +394,12 @@ class SimpleMCTSFast:
         node.N += 1
         node.W += value
 
-    def rollout(self, node=None):
+    def rollout(self, node=None, depth=0):
         if node is None:
             node = self.root
+
+        self.pbar.n = depth
+        self.pbar.refresh()
 
         if not self.check_coalition_size(node.coalition):
             return self.simulate(node)
@@ -406,7 +409,7 @@ class SimpleMCTSFast:
 
         if node.children:
             node_next = node.best_child(self.c_puct)
-            value = self.rollout(node_next)
+            value = self.rollout(node_next, depth + 1)
         else:
             value = self.simulate(node)
 
@@ -418,6 +421,7 @@ class SimpleMCTSFast:
 
     def run(self):
         for _ in trange(self.rollout_limit, desc='MCTS'):
+            self.pbar = tqdm(desc="MCTS Depth")
             self.rollout()
 
     def get_explained_nodes(self):
