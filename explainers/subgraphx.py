@@ -625,7 +625,7 @@ class SubgraphXCore(ExplainerCore):
         features_list = []
         for i in range(len(selected_node)):
             features_list.append(
-                torch.zeros_like(features[i]).to(self.device_string))
+                torch.zeros_like(features[:, 0]).to(self.device_string))
             features_list[i][selected_node[i]] = 1
         self.feature_mask = features_list
 
