@@ -215,7 +215,7 @@ class SimpleMCTS:
                 break
         if selected_node is None:
             raise ValueError('No node with coalition size less than max_ratio')
-        return selected_node.coalition
+        return selected_node
 
     def collect_all_nodes(self):
         stack = [self.root]
@@ -437,7 +437,7 @@ class SimpleMCTSFast:
                 break
         if selected_node is None:
             raise ValueError('No node with coalition size less than max_ratio')
-        return selected_node.coalition
+        return selected_node
 
     def collect_all_nodes(self):
         stack = [self.root]
