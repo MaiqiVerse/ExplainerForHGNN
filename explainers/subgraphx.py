@@ -21,6 +21,7 @@ import networkx as nx
 from typing import List, Tuple, Union
 import random
 import copy
+from tqdm import trange
 
 
 def mean(iterable):
@@ -166,9 +167,12 @@ class SimpleMCTS:
         node.N += 1
         node.W += value
 
-    def rollout(self, node=None):
+    def rollout(self, node=None, depth=0):
         if node is None:
             node = self.root
+
+        self.pbar.n = depth
+        self.pbar.refresh()
 
         if not self.check_coalition_size(node.coalition):
             return self.simulate(node)
@@ -178,7 +182,7 @@ class SimpleMCTS:
 
         if node.children:
             node_next = node.best_child(self.c_puct)
-            value = self.rollout(node_next)
+            value = self.rollout(node_next, depth + 1)
         else:
             value = self.simulate(node)
 
@@ -189,7 +193,8 @@ class SimpleMCTS:
         return sum(len(i) for i in coalition) > self.min_size
 
     def run(self):
-        for _ in range(self.rollout_limit):
+        for _ in trange(self.rollout_limit, desc='MCTS'):
+            self.pbar = tqdm(desc="MCTS Depth")
             self.rollout()
 
     def get_explained_nodes(self):
@@ -407,7 +412,7 @@ class SimpleMCTSFast:
         return sum(len(i) for i in coalition) > self.min_size
 
     def run(self):
-        for _ in range(self.rollout_limit):
+        for _ in trange(self.rollout_limit, desc='MCTS'):
             self.rollout()
 
     def get_explained_nodes(self):
