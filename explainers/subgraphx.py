@@ -221,7 +221,7 @@ class SimpleMCTSFast:
     def __init__(self, graph: List[nx.Graph], target_node: int, score_func, node_groups,
                  c_puct=10.0, min_size=5, rollout_limit=20,
                  coalition_max_size=None,
-                 steps_fast=20, ratio=0.25, threshold=40
+                 steps_fast=20, ratio=0.25, threshold=20
                  ):
         self.full_graph = graph
         self.target_node = target_node
@@ -647,7 +647,7 @@ class SubgraphXCore(ExplainerCore):
                 coalition_max_size=self.config.get('coalition_max_size', 7),
                 steps_fast=self.config.get('steps_fast', 20),
                 ratio=self.config.get('top_k_for_feature_mask', 0.25),
-                threshold=self.config.get('threshold', 40))
+                threshold=self.config.get('threshold', 20))
         self.mcts_tree.run()
 
     def _prepare_value_func(self):
