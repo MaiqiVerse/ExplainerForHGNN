@@ -808,7 +808,7 @@ class SubgraphXCore(ExplainerCore):
         explanation = NodeExplanation()
         explanation = standard_explanation(explanation, self)
         explanation.feature_mask_hard = explanation.feature_mask
-        explanation.opposite_feature_mask_hard = 1 - explanation.feature_mask_hard
+        explanation.opposite_feature_mask_hard = [1 - i for i in explanation.feature_mask_hard]
         for metric in self.config['eval_metrics']:
             prepare_explanation_fn_for_node_dataset_scores[metric](explanation, self)
         self.explanation = explanation
