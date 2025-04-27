@@ -659,7 +659,7 @@ class SubgraphXCore(ExplainerCore):
                                           self.mapping_node_id() in i
                                           ][0])
             graphs.append(nx_graph)
-        num_nodes = len(self.extract_neighbors_input()[0])
+        num_nodes = len(self.extract_neighbors_input()[1])
         if not self.config.get('use_fast', True):
             self.mcts_tree = SimpleMCTS(
                 graphs, self.mapping_node_id(), reward_func,  # type: ignore
