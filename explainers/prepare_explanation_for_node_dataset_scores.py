@@ -189,8 +189,6 @@ def full_feature_mask_hard(feature_mask, explainer, opposite=False, separate=Tru
             explainer.config['feature_mask_threshold_method']))
 
 
-
-
 def get_feature_mask_hard(explainer, opposite=False, separate=True):
     if explainer.feature_mask_for_output is None:
         return None
@@ -224,7 +222,7 @@ def get_feature_mask_hard(explainer, opposite=False, separate=True):
             else:
                 feature_mask_tensor = torch.cat(feature_mask)
                 threshold = torch.quantile(feature_mask_tensor,
-                                             explainer.config['threshold_percentage_feature'])
+                                           explainer.config['threshold_percentage_feature'])
                 if opposite:
                     return [
                         fm <= threshold for fm in feature_mask
@@ -344,7 +342,7 @@ def fidelity_pos_explanation(node_explanation, explainer):
         if "opposite_masked_pred_label" not in node_explanation:
             flag = True
             if "opposite_masked_gs_hard" not in node_explanation and getattr(
-                explainer, 'edge_mask_for_output', None) is not None:
+                    explainer, 'edge_mask_for_output', None) is not None:
                 opposite_masked_gs_hard = get_masked_gs_hard(explainer, opposite=True)
                 node_explanation.opposite_masked_gs_hard = opposite_masked_gs_hard
                 flag = False
@@ -354,7 +352,7 @@ def fidelity_pos_explanation(node_explanation, explainer):
                 node_explanation.opposite_masked_gs_hard = None
 
             if "opposite_feature_mask_hard" not in node_explanation and getattr(
-                explainer, 'feature_mask_for_output', None) is not None:
+                    explainer, 'feature_mask_for_output', None) is not None:
                 opposite_feature_mask_hard = get_feature_mask_hard(explainer,
                                                                    opposite=True)
                 node_explanation.opposite_feature_mask_hard = opposite_feature_mask_hard
@@ -555,7 +553,7 @@ def fidelity_curve_auc_explanation(node_explanation, explainer):
 
     if "masked_pred_labels_hard_threshold" not in node_explanation:
         if not explainer.config.get('auc_use_feature_mask', False) and \
-            not explainer.config.get('auc_use_edge_mask', False):
+                not explainer.config.get('auc_use_edge_mask', False):
             raise ValueError(
                 'one of auc_use_feature_mask and auc_use_edge_mask should be True')
         if explainer.config.get('auc_use_feature_mask', False):
@@ -584,7 +582,7 @@ def fidelity_curve_auc_explanation(node_explanation, explainer):
 
     if "opposite_masked_pred_labels_hard_threshold" not in node_explanation:
         if not explainer.config.get('auc_use_feature_mask', False) and \
-            not explainer.config.get('auc_use_edge_mask', False):
+                not explainer.config.get('auc_use_edge_mask', False):
             raise ValueError(
                 'one of auc_use_feature_mask and auc_use_edge_mask should be True')
         if explainer.config.get('auc_use_feature_mask', False):
@@ -665,9 +663,19 @@ def sparsity_explanation(node_explanation, explainer):
     :param node_explanation: a NodeExplanation object
     :param explainer: an Explainer object
     """
-    if "edge_mask_hard" not in node_explanation:
+    if explainer.config.get('sparsity_type', 'edge') == 'edge' and "edge_mask_hard" not in node_explanation and getattr(
+            explainer,
+            'edge_mask_for_output',
+            None) is not None:
         edge_mask_hard = get_edge_mask_hard(explainer)
         node_explanation.edge_mask_hard = edge_mask_hard
+
+    if explainer.config.get('sparsity_type', 'edge') != 'edge' and "feature_mask_hard" not in node_explanation and getattr(
+            explainer,
+            'feature_mask_for_output',
+            None) is not None:
+        feature_mask_hard = get_feature_mask_hard(explainer)
+        node_explanation.feature_mask_hard = feature_mask_hard
 
     return node_explanation
 

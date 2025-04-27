@@ -907,7 +907,6 @@ class SubgraphX(Explainer):
         eval_result = {}
         if self.config.get('eval_metrics', None) is not None:
             for metric in self.config['eval_metrics']:
-                # node_dataset_score_explanations_combined[metric](self.result, self)
                 self.result = prepare_combined_explanation_fn_for_node_dataset_scores[
                     metric](self.result, self)
                 eval_result[metric] = node_dataset_scores[metric](self.result)
