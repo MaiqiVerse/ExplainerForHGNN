@@ -52,7 +52,7 @@ class SimpleMCTSNode:
 class SimpleMCTS:
     def __init__(self, graph: List[nx.Graph], target_node: int, score_func, num_nodes,
                  c_puct=10.0, min_size=5, rollout_limit=20,
-                 coalition_max_size=None
+                 coalition_max_size=None, max_depth=500
                  ):
         self.full_graph = graph
         self.target_node = target_node
@@ -68,6 +68,7 @@ class SimpleMCTS:
         self.coalition_max_size = coalition_max_size
 
         self.num_nodes = num_nodes
+        self.max_depth = max_depth
 
     def _key(self, coalition):
         result_str = ''
@@ -175,6 +176,16 @@ class SimpleMCTS:
     def rollout(self, node=None, depth=0):
         if node is None:
             node = self.root
+
+        # warning if depth is too large
+        if depth > 0.8 * self.max_depth:
+            print(f"Warning: Depth {depth} exceeds 80% of max depth {self.max_depth}")
+
+        if depth > self.max_depth:
+            print(f"Warning: Depth {depth} exceeds max depth {self.max_depth}")
+            value = self.simulate(node)
+            self.backpropagation(node, value)
+            return value
 
         self.pbar.n = depth
         self.pbar.refresh()
