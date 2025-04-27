@@ -50,7 +50,7 @@ class SimpleMCTSNode:
 
 
 class SimpleMCTS:
-    def __init__(self, graph: List[nx.Graph], target_node: int, score_func, node_groups,
+    def __init__(self, graph: List[nx.Graph], target_node: int, score_func, num_nodes,
                  c_puct=10.0, min_size=5, rollout_limit=20,
                  coalition_max_size=None
                  ):
@@ -67,7 +67,7 @@ class SimpleMCTS:
         self._register_node(self.root)
         self.coalition_max_size = coalition_max_size
 
-        self.node_groups = node_groups
+        self.num_nodes = num_nodes
 
     def _key(self, coalition):
         result_str = ''
@@ -195,7 +195,7 @@ class SimpleMCTS:
         return value
 
     def check_coalition_size(self, coalition):
-        return sum(len(i) for i in coalition) > self.min_size
+        return len(set(sum(coalition, []))) > self.min_size
 
     def run(self):
         for _ in trange(self.rollout_limit, desc='MCTS'):
@@ -210,7 +210,7 @@ class SimpleMCTS:
         all_nodes = sorted(all_nodes, key=lambda n: n.P, reverse=True)
         selected_node = None
         for i in range(len(all_nodes)):
-            if sum(len(j) for j in all_nodes[i].coalition) < ratio * sum(self.node_groups):
+            if len(set(sum(all_nodes[i].coalition, []))) < ratio * sum(self.num_nodes):
                 selected_node = all_nodes[i]
                 break
         if selected_node is None:
@@ -228,7 +228,7 @@ class SimpleMCTS:
 
 
 class SimpleMCTSFast:
-    def __init__(self, graph: List[nx.Graph], target_node: int, score_func, node_groups,
+    def __init__(self, graph: List[nx.Graph], target_node: int, score_func, num_nodes,
                  c_puct=10.0, min_size=5, rollout_limit=20,
                  coalition_max_size=None,
                  steps_fast=20, ratio=0.25, threshold=20
@@ -249,8 +249,8 @@ class SimpleMCTSFast:
         self.ratio = ratio
         self.threshold = threshold
 
-        self.node_groups = node_groups
-        self._all_node_num = sum(self.node_groups)
+        self.num_nodes = num_nodes
+        self._all_node_num = num_nodes
         self._ratio_num = self._all_node_num * self.ratio
         self._threshold_ratio = self.threshold + self._ratio_num
 
@@ -303,7 +303,7 @@ class SimpleMCTSFast:
 
     def _group_filter_by_degree(self, coalition):
         # check coalition size to choose fast or slow
-        if sum(len(i) for i in coalition) < self._threshold_ratio:
+        if len(set(sum(coalition, []))) < self._threshold_ratio:
             return self._filter_by_degree_group_filter_by_degree_slow(coalition)
         else:
             return self._filter_by_degree_group_filter_by_degree_fast(coalition)
@@ -417,7 +417,7 @@ class SimpleMCTSFast:
         return value
 
     def check_coalition_size(self, coalition):
-        return sum(len(i) for i in coalition) > self.min_size
+        return len(set(sum(coalition, []))) > self.min_size
 
     def run(self):
         for _ in trange(self.rollout_limit, desc='MCTS'):
@@ -432,7 +432,7 @@ class SimpleMCTSFast:
         all_nodes = sorted(all_nodes, key=lambda n: n.P, reverse=True)
         selected_node = None
         for i in range(len(all_nodes)):
-            if sum(len(j) for j in all_nodes[i].coalition) < ratio * self._all_node_num:
+            if len(set(sum(all_nodes[i].coalition, []))) < self._ratio_num:
                 selected_node = all_nodes[i]
                 break
         if selected_node is None:
@@ -625,37 +625,35 @@ class SubgraphXCore(ExplainerCore):
         features_list = []
         for i in range(len(selected_node)):
             features_list.append(
-                torch.zeros_like(features[i]).to(self.device_string))
+                torch.zeros_like(features[:, 0]).to(self.device_string))
             features_list[i][selected_node[i]] = 1
         self.feature_mask = features_list
 
     def _mcts(self, reward_func):
-        orig_graph = []
         graphs = []
         for g in self.extract_neighbors_input()[0]:
             nx_graph = g.to_dense().cpu().numpy()
             nx_graph = nx.from_numpy_array(nx_graph)
-            orig_graph.append(nx_graph)
             nx_graph = nx_graph.subgraph([i for i in list(nx.connected_components(nx_graph)) if
                                           self.mapping_node_id() in i
                                           ][0])
             graphs.append(nx_graph)
-        node_groups = [len(i) for i in orig_graph]
+        num_nodes = len(self.extract_neighbors_input()[0])
         if not self.config.get('use_fast', True):
             self.mcts_tree = SimpleMCTS(
                 graphs, self.mapping_node_id(), reward_func,  # type: ignore
-                node_groups,
+                num_nodes,
                 c_puct=self.config.get('c_puct', 10.0),
-                min_size=sum(node_groups) * self.config.get('top_k_for_feature_mask', 0.25) - self.config.get(
+                min_size=num_nodes * self.config.get('top_k_for_feature_mask', 0.25) - self.config.get(
                     'min_size', 5),
                 rollout_limit=self.config.get('rollout_limit', 10),
                 coalition_max_size=self.config.get('coalition_max_size', 7))
         else:
             self.mcts_tree = SimpleMCTSFast(
                 graphs, self.mapping_node_id(), reward_func,  # type: ignore
-                node_groups,
+                num_nodes,
                 c_puct=self.config.get('c_puct', 10.0),
-                min_size=sum(node_groups) * self.config.get('top_k_for_feature_mask', 0.25) - self.config.get(
+                min_size=num_nodes * self.config.get('top_k_for_feature_mask', 0.25) - self.config.get(
                     'min_size', 5),
                 rollout_limit=self.config.get('rollout_limit', 10),
                 coalition_max_size=self.config.get('coalition_max_size', 7),
