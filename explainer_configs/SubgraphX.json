@@ -30,6 +30,9 @@
   "top_k_for_edge_mask": 0.25,
   "feature_mask_hard_method": "top_k",
   "top_k_for_feature_mask": 0.25,
+  "control_data": {
+    "sparsity_type": "feature"
+  },
   "threshold_percentage_edge": 0.5,
   "perturb_ratio_in_gs_for_stability": 0.001,
   "perturb_std_in_features_for_stability": 0.01,
