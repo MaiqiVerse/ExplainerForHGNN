@@ -206,7 +206,7 @@ class SimpleMCTS:
         return value
 
     def check_coalition_size(self, coalition):
-        return len(set(sum(coalition, []))) > self.min_size
+        return len(sum(coalition, [])) > self.min_size
 
     def run(self):
         for _ in trange(self.rollout_limit, desc='MCTS'):
@@ -221,7 +221,7 @@ class SimpleMCTS:
         all_nodes = sorted(all_nodes, key=lambda n: n.P, reverse=True)
         selected_node = None
         for i in range(len(all_nodes)):
-            if len(set(sum(all_nodes[i].coalition, []))) < ratio * sum(self.num_nodes):
+            if len(sum(all_nodes[i].coalition, [])) < ratio * self.num_nodes * len(all_nodes[i].coalition):
                 selected_node = all_nodes[i]
                 break
         if selected_node is None:
@@ -262,7 +262,7 @@ class SimpleMCTSFast:
 
         self.num_nodes = num_nodes
         self._all_node_num = num_nodes
-        self._ratio_num = self._all_node_num * self.ratio
+        self._ratio_num = self._all_node_num * self.ratio * len(self.full_graph)
         self._threshold_ratio = self.threshold + self._ratio_num
         self.max_depth = max_depth
 
@@ -315,7 +315,7 @@ class SimpleMCTSFast:
 
     def _group_filter_by_degree(self, coalition):
         # check coalition size to choose fast or slow
-        if len(set(sum(coalition, []))) < self._threshold_ratio:
+        if len(sum(coalition, [])) < self._threshold_ratio:
             return self._filter_by_degree_group_filter_by_degree_slow(coalition)
         else:
             return self._filter_by_degree_group_filter_by_degree_fast(coalition)
@@ -438,7 +438,7 @@ class SimpleMCTSFast:
         return value
 
     def check_coalition_size(self, coalition):
-        return len(set(sum(coalition, []))) > self.min_size
+        return len(sum(coalition, [])) > self.min_size
 
     def run(self):
         for _ in trange(self.rollout_limit, desc='MCTS'):
@@ -453,7 +453,7 @@ class SimpleMCTSFast:
         all_nodes = sorted(all_nodes, key=lambda n: n.P, reverse=True)
         selected_node = None
         for i in range(len(all_nodes)):
-            if len(set(sum(all_nodes[i].coalition, []))) < self._ratio_num:
+            if len(sum(all_nodes[i].coalition, [])) < self._ratio_num:
                 selected_node = all_nodes[i]
                 break
         if selected_node is None:
@@ -665,8 +665,8 @@ class SubgraphXCore(ExplainerCore):
                 graphs, self.mapping_node_id(), reward_func,  # type: ignore
                 num_nodes,
                 c_puct=self.config.get('c_puct', 10.0),
-                min_size=num_nodes * self.config.get('top_k_for_feature_mask', 0.25) - self.config.get(
-                    'min_size', 5),
+                min_size=num_nodes * self.config.get('top_k_for_feature_mask', 0.25) * len(graphs)
+                         - self.config.get('min_size', 5),
                 rollout_limit=self.config.get('rollout_limit', 10),
                 coalition_max_size=self.config.get('coalition_max_size', 7))
         else:
@@ -674,8 +674,8 @@ class SubgraphXCore(ExplainerCore):
                 graphs, self.mapping_node_id(), reward_func,  # type: ignore
                 num_nodes,
                 c_puct=self.config.get('c_puct', 10.0),
-                min_size=num_nodes * self.config.get('top_k_for_feature_mask', 0.25) - self.config.get(
-                    'min_size', 5),
+                min_size=num_nodes * self.config.get('top_k_for_feature_mask', 0.25) * len(graphs)
+                         - self.config.get('min_size', 5),
                 rollout_limit=self.config.get('rollout_limit', 10),
                 coalition_max_size=self.config.get('coalition_max_size', 7),
                 steps_fast=self.config.get('steps_fast', 20),
