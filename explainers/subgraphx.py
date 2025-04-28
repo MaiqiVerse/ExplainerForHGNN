@@ -178,7 +178,7 @@ class SimpleMCTS:
             node = self.root
 
         # warning if depth is too large
-        if depth > 0.8 * self.max_depth:
+        if depth == int(0.8 * self.max_depth):
             print(f"Warning: Depth {depth} exceeds 80% of max depth {self.max_depth}")
 
         if depth > self.max_depth:
