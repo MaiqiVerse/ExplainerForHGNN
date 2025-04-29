@@ -111,7 +111,7 @@
      Coefficient for the Laplacian loss, which encourages connectedness in the graph structure.
 7. **Evaluation and Metrics:**
 
-   - **`eval_metrics`**: (list of strings)Metrics to evaluate the explanation. Available options include:
+   - **`eval_metrics`**: (list of strings) Metrics to evaluate the explanation. Available options include:
 
      - `"fidelity_neg"`: Negative fidelity score.
      - `"fidelity_pos"`: Positive fidelity score.
