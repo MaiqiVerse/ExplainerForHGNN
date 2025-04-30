@@ -164,7 +164,7 @@ def save_summary(summary, explainer):
     :param summary: a dictionary containing the summary
     :param explainer: an Explainer object
     """
-    file_name = f"{explainer.__name__}_{explainer.model.__class__.__name__}_{explainer.dataset.__class__.__name__}_improvement_summary.json"
+    file_name = f"{explainer.__class__.__name__}_{explainer.model.__class__.__name__}_{explainer.dataset.__class__.__name__}_improvement_summary.json"
     folder = "./improvement_summaries/"
     if not os.path.exists(folder):
         os.makedirs(folder)
