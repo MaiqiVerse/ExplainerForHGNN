@@ -150,10 +150,10 @@ def get_improvement_summary(explainer):
         "Improved": improved,
         "Improvement": minus_result,
         "Improvement Ratio": {
-            "Macro-F1": (summary["Macro-f1"] - origin_summary["Macro-f1"]) / origin_summary[
-                "Macro-f1"],
-            "Micro-F1": (summary["Micro-f1"] - origin_summary["Micro-f1"]) / origin_summary[
-                "Micro-f1"]
+            "Macro-F1": (summary["Macro-F1"] - origin_summary["Macro-F1"]) / origin_summary[
+                "Macro-F1"],
+            "Micro-F1": (summary["Micro-F1"] - origin_summary["Micro-F1"]) / origin_summary[
+                "Micro-F1"]
         }
     }
 
