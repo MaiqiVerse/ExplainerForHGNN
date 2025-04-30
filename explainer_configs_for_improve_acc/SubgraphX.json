@@ -22,7 +22,7 @@
   "edge_mask_hard_method": "top_k",
   "top_k_for_edge_mask": 0.75,
   "feature_mask_hard_method": "top_k",
-  "top_k_for_feature_mask": 0.25,
+  "top_k_for_feature_mask": 0.75,
   "control_data": {
     "sparsity_type": "feature"
   },

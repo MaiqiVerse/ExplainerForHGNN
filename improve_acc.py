@@ -27,6 +27,8 @@ def get_args():
                         help='GPU device id')
     parser.add_argument('--random_seed', type=int, default=42,
                         help='Random seed for reproducibility')
+    parser.add_argument('--topk', type=float, default=0.75,
+                        help='Top k nodes to be explained')
     args = parser.parse_args()
     return args
 
@@ -69,11 +71,18 @@ def train_model(model_name, dataset_path, device, dataset_config=None,
     return model
 
 
-def explain(model, explainer_name, device, explainer_config=None
+def explain(model, explainer_name, device, explainer_config=None, topk=0.75
             ):
     explainer = load_explainer(explainer_name, model.__class__.__name__,
                                model.dataset.__class__.__name__,
                                explainer_config)
+    if "top_k_for_edge_mask" in explainer.config:
+        explainer.config["top_k_for_edge_mask"] = topk
+    if "top_k_for_feature_mask" in explainer.config:
+        explainer.config["top_k_for_feature_mask"] = topk
+    if not explainer.config.get("top_k_for_edge_mask", False) and not explainer.config.get(
+            "top_k_for_feature_mask", False):
+        print("Please check the setting is correct, top_k_for_edge_mask and top_k_for_feature_mask are both not exist")
     explainer.to(device)
     result = explainer.explain(model)
     return explainer
@@ -91,7 +100,7 @@ def main():
 
     # Get the explanation for the target node
     explainer_config = prepare_improve_acc_explainer_config(args.explainer, args.model, args.dataset)
-    explainer = explain(model, args.explainer, args.device, explainer_config)
+    explainer = explain(model, args.explainer, args.device, explainer_config, args.topk)
 
     # Get the improvement summary
     improvement_summary = get_improvement_summary(explainer)
@@ -103,7 +112,7 @@ def main():
         print(f"{key}: {value}")
 
     # Save the summary
-    save_summary(improvement_summary, explainer)
+    save_summary(improvement_summary, explainer, args.topk)
 
 
 def prepare_improve_acc_explainer_config(explainer_name, model_name, dataset_name):
@@ -158,13 +167,13 @@ def get_improvement_summary(explainer):
     }
 
 
-def save_summary(summary, explainer):
+def save_summary(summary, explainer, topk=0.75):
     """
     Save the summary to a file
     :param summary: a dictionary containing the summary
     :param explainer: an Explainer object
     """
-    file_name = f"{explainer.__class__.__name__}_{explainer.model.__class__.__name__}_{explainer.model.dataset.__class__.__name__}_improvement_summary.json"
+    file_name = f"{explainer.__class__.__name__}_{explainer.model.__class__.__name__}_{explainer.model.dataset.__class__.__name__}_topk_{topk}_improvement_summary.json"
     folder = "./improvement_summaries/"
     if not os.path.exists(folder):
         os.makedirs(folder)
