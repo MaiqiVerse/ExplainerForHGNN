@@ -25,6 +25,8 @@ def get_args():
                         help='The explainer to be used for explanation')
     parser.add_argument('--device', type=int, default=0,
                         help='GPU device id')
+    parser.add_argument('--random_seed', type=int, default=42,
+                        help='Random seed for reproducibility')
     args = parser.parse_args()
     return args
 
@@ -79,7 +81,7 @@ def explain(model, explainer_name, device, explainer_config=None
 
 def main():
     args = get_args()
-    set_seed(args.random_seed, args.ensure_reproducibility)
+    set_seed(args.random_seed, True)
 
     # Set device
     device = torch.device(f"cuda:{args.device}" if torch.cuda.is_available() else "cpu")
