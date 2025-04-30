@@ -954,88 +954,107 @@ def graph_exp_stability_edge_explanation(node_explanation, explainer):
 
 def MacroF1_explanation(node_explanation, explainer):
     """
-    Set the masked_pred_label and pred_label for the MacroF1 score
+    Set the masked_pred_label_hard and label for the MacroF1 score
     :param node_explanation: a NodeExplanation object
     :param explainer: an Explainer object
     """
-    if "masked_pred_label" not in node_explanation:
-        flag = True
-        if "masked_gs_hard" not in node_explanation and getattr(explainer,
-                                                                'edge_mask_for_output',
-                                                                None) is not None:
-            masked_gs_hard = get_masked_gs_hard(explainer)
-            node_explanation.masked_gs_hard = masked_gs_hard
-            flag = False
-        elif "masked_gs_hard" in node_explanation:
-            flag = False
-        else:
-            node_explanation.masked_gs_hard = None
-        if "feature_mask_hard" not in node_explanation and getattr(explainer,
-                                                                   'feature_mask_for_output',
-                                                                   None) is not None:
-            feature_mask_hard = get_feature_mask_hard(explainer)
-            node_explanation.feature_mask_hard = feature_mask_hard
-            flag = False
-        elif "feature_mask_hard" in node_explanation:
-            flag = False
-        else:
-            node_explanation.feature_mask_hard = None
-        if flag:
-            raise ValueError('masked_gs_hard and feature_mask_hard are not found')
-        masked_pred_label = \
-            explainer.model.custom_forward(explainer.get_custom_input_handle_fn(
-                node_explanation.masked_gs_hard,
-                node_explanation.feature_mask_hard))[
-                explainer.mapping_node_id()]
-        node_explanation.masked_pred_label = masked_pred_label
+    if "masked_pred_label_hard" not in node_explanation:
+        if "masked_pred_label" not in node_explanation:
+            flag = True
+            if "masked_gs_hard" not in node_explanation and getattr(explainer,
+                                                                    'edge_mask_for_output',
+                                                                    None) is not None:
+                masked_gs_hard = get_masked_gs_hard(explainer)
+                node_explanation.masked_gs_hard = masked_gs_hard
+                flag = False
+            elif "masked_gs_hard" in node_explanation:
+                flag = False
+            else:
+                node_explanation.masked_gs_hard = None
+            if "feature_mask_hard" not in node_explanation and getattr(explainer,
+                                                                       'feature_mask_for_output',
+                                                                       None) is not None:
+                feature_mask_hard = get_feature_mask_hard(explainer)
+                node_explanation.feature_mask_hard = feature_mask_hard
+                flag = False
+            elif "feature_mask_hard" in node_explanation:
+                flag = False
+            else:
+                node_explanation.feature_mask_hard = None
+            if flag:
+                raise ValueError('masked_gs_hard and feature_mask_hard are not found')
+            masked_pred_label = \
+                explainer.model.custom_forward(explainer.get_custom_input_handle_fn(
+                    node_explanation.masked_gs_hard,
+                    node_explanation.feature_mask_hard))[
+                    explainer.mapping_node_id()]
+            node_explanation.masked_pred_label = masked_pred_label
+        masked_pred_label_hard = node_explanation.masked_pred_label.argmax()
+        node_explanation.masked_pred_label_hard = masked_pred_label_hard
+    if "label" not in node_explanation:
+        label_test = explainer.model.dataset.labels[2]
+        label = None
+        for l in label_test:
+            if l[0] == explainer.node_id:
+                label = l[1]
+                break
 
-    if "pred_label" not in node_explanation:
-        pred_label = explainer.model()[explainer.node_id]
-        node_explanation.pred_label = pred_label
+        label = torch.tensor(label, device=explainer.model.device)
+        node_explanation.label = label
 
     return node_explanation
 
 
 def MicroF1_explanation(node_explanation, explainer):
     """
-    Set the masked_pred_label and pred_label for the MicroF1 score
+    Set the masked_pred_label_hard and label for the MicroF1 score
     :param node_explanation: a NodeExplanation object
     :param explainer: an Explainer object
     """
-    if "masked_pred_label" not in node_explanation:
-        flag = True
-        if "masked_gs_hard" not in node_explanation and getattr(explainer,
-                                                                'edge_mask_for_output',
-                                                                None) is not None:
-            masked_gs_hard = get_masked_gs_hard(explainer)
-            node_explanation.masked_gs_hard = masked_gs_hard
-            flag = False
-        elif "masked_gs_hard" in node_explanation:
-            flag = False
-        else:
-            node_explanation.masked_gs_hard = None
-        if "feature_mask_hard" not in node_explanation and getattr(explainer,
-                                                                   'feature_mask_for_output',
-                                                                   None) is not None:
-            feature_mask_hard = get_feature_mask_hard(explainer)
-            node_explanation.feature_mask_hard = feature_mask_hard
-            flag = False
-        elif "feature_mask_hard" in node_explanation:
-            flag = False
-        else:
-            node_explanation.feature_mask_hard = None
-        if flag:
-            raise ValueError('masked_gs_hard and feature_mask_hard are not found')
-        masked_pred_label = \
-            explainer.model.custom_forward(explainer.get_custom_input_handle_fn(
-                node_explanation.masked_gs_hard,
-                node_explanation.feature_mask_hard))[
-                explainer.mapping_node_id()]
-        node_explanation.masked_pred_label = masked_pred_label
+    if "masked_pred_label_hard" not in node_explanation:
+        if "masked_pred_label" not in node_explanation:
+            flag = True
+            if "masked_gs_hard" not in node_explanation and getattr(explainer,
+                                                                    'edge_mask_for_output',
+                                                                    None) is not None:
+                masked_gs_hard = get_masked_gs_hard(explainer)
+                node_explanation.masked_gs_hard = masked_gs_hard
+                flag = False
+            elif "masked_gs_hard" in node_explanation:
+                flag = False
+            else:
+                node_explanation.masked_gs_hard = None
+            if "feature_mask_hard" not in node_explanation and getattr(explainer,
+                                                                       'feature_mask_for_output',
+                                                                       None) is not None:
+                feature_mask_hard = get_feature_mask_hard(explainer)
+                node_explanation.feature_mask_hard = feature_mask_hard
+                flag = False
+            elif "feature_mask_hard" in node_explanation:
+                flag = False
+            else:
+                node_explanation.feature_mask_hard = None
+            if flag:
+                raise ValueError('masked_gs_hard and feature_mask_hard are not found')
+            masked_pred_label = \
+                explainer.model.custom_forward(explainer.get_custom_input_handle_fn(
+                    node_explanation.masked_gs_hard,
+                    node_explanation.feature_mask_hard))[
+                    explainer.mapping_node_id()]
+            node_explanation.masked_pred_label = masked_pred_label
+        masked_pred_label_hard = node_explanation.masked_pred_label.argmax()
+        node_explanation.masked_pred_label_hard = masked_pred_label_hard
 
-    if "pred_label" not in node_explanation:
-        pred_label = explainer.model()[explainer.node_id]
-        node_explanation.pred_label = pred_label
+    if "label" not in node_explanation:
+        label_test = explainer.model.dataset.labels[2]
+        label = None
+        for l in label_test:
+            if l[0] == explainer.node_id:
+                label = l[1]
+                break
+
+        label = torch.tensor(label, device=explainer.model.device)
+        node_explanation.label = label
 
     return node_explanation
 
