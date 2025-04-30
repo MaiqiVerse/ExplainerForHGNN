@@ -145,16 +145,16 @@ def get_improvement_summary(explainer):
     minus_result = "Macro-F1 ({}) Micro-F1 ({})".format(
         summary["Macro-F1"] - origin_summary["Macro-F1"],
         summary["Micro-F1"] - origin_summary["Micro-F1"])
+    improve_ratio = "Macro-F1 ({}) Micro-F1 ({})".format(
+        (summary["Macro-F1"] - origin_summary["Macro-F1"]) / origin_summary[
+            "Macro-F1"],
+        (summary["Micro-F1"] - origin_summary["Micro-F1"]) / origin_summary[
+            "Micro-F1"])
     return {
         "Original": origin,
         "Improved": improved,
         "Improvement": minus_result,
-        "Improvement Ratio": {
-            "Macro-F1": (summary["Macro-F1"] - origin_summary["Macro-F1"]) / origin_summary[
-                "Macro-F1"],
-            "Micro-F1": (summary["Micro-F1"] - origin_summary["Micro-F1"]) / origin_summary[
-                "Micro-F1"]
-        }
+        "Improvement Ratio": improve_ratio,
     }
 
 
@@ -164,7 +164,7 @@ def save_summary(summary, explainer):
     :param summary: a dictionary containing the summary
     :param explainer: an Explainer object
     """
-    file_name = f"{explainer.explainer_name}_{explainer.model.__class__.__name__}_{explainer.dataset.__class__.__name__}_improvement_summary.json"
+    file_name = f"{explainer.__name__}_{explainer.model.__class__.__name__}_{explainer.dataset.__class__.__name__}_improvement_summary.json"
     folder = "./improvement_summaries/"
     if not os.path.exists(folder):
         os.makedirs(folder)
