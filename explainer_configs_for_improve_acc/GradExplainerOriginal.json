@@ -1,0 +1,46 @@
+{
+  "record_metrics": [
+    "mask_density"
+  ],
+  "extract_neighbors": true,
+  "mask_features": true,
+  "feature_mask_marginalize": false,
+  "apply_mata_mask": true,
+  "use_label": false,
+  "eval_metrics": [
+    "Macro-F1",
+    "Micro-F1"
+  ],
+  "summary_path": "explainer_summary/{model_name}_{dataset_name}_{explainer_name}_summary.json",
+  "edge_mask_hard_method": "top_k",
+  "top_k_for_edge_mask": 0.75,
+  "feature_mask_hard_method": "top_k",
+  "top_k_for_feature_mask": 0.75,
+  "threshold_percentage_edge": 0.5,
+  "threshold_percentage_auc": [
+    0.0,
+    0.1,
+    0.2,
+    0.3,
+    0.4,
+    0.5,
+    0.6,
+    0.7,
+    0.8,
+    0.9,
+    1.0
+  ],
+  "auc_use_feature_mask": true,
+  "auc_use_edge_mask": true,
+  "top_k_for_faith_feature": 0.25,
+  "top_k_for_faith_edge": 0.25,
+  "perturb_ratio_in_gs_for_stability": 0.001,
+  "perturb_std_in_features_for_stability": 0.01,
+  "stability_times": 25,
+  "pos_weight_characterization_score": 0.5,
+  "neg_weight_characterization_score": 0.5,
+  "top_k_for_stability_feature": 0.25,
+  "top_k_for_stability_edge": 0.25,
+  "device": 0,
+  "explanation_path": "explainer_results/{model_name}_{dataset_name}_{explainer_name}"
+}

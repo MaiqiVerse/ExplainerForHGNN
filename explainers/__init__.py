@@ -58,9 +58,10 @@ import os
 def load_default_config(explainer_name, model_name, dataset_name):
     if os.path.exists(
         f"./explainer_configs/{explainer_name}_{model_name}_{dataset_name}.json"):
-        with open(
-            f"./explainer_configs/{explainer_name}_{model_name}_{dataset_name}.json",
-            "r") as f:
+        with open(f"./explainer_configs/{explainer_name}_{model_name}_{dataset_name}.json", "r") as f:
+            config = json.load(f)
+    elif os.path.exists(f"./explainer_configs/{explainer_name}_{model_name}.json"):
+        with open(f"./explainer_configs/{explainer_name}_{model_name}.json", "r") as f:
             config = json.load(f)
     else:
         with open(f"./explainer_configs/{explainer_name}.json", "r") as f:

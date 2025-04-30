@@ -26,6 +26,9 @@ def load_model(model_name, dataset, model_config=None, is_load_model=False):
     if model_config is not None:
         with open(model_config, "r") as f:
             config = json.load(f)
+    elif os.path.exists(f"./model_configs/{model_name}.json"):
+        with open(f"./model_configs/{model_name}.json", "r") as f:
+            config = json.load(f)
     else:
         with open(f"./model_configs/{model_name}_{dataset.dataset_name}.json",
                   "r") as f:

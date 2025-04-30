@@ -30,15 +30,8 @@
   "opt_lr": 0.1,
   "opt_wd": 0.0,
   "eval_metrics": [
-    "fidelity_neg",
-    "fidelity_pos",
-    "characterization_score",
-    "fidelity_curve_auc",
-    "unfaithfulness",
-    "sparsity",
     "Macro-F1",
-    "Micro-F1",
-    "roc_auc_score"
+    "Micro-F1"
   ],
   "summary_path": "gnn_explainer_summary.json"
 }
@@ -54,6 +47,7 @@
      Number of hops to extract neighbors for explanation. Only used when `extract_neighbors` is `true`. The value is usually determined by the number of graph convolution layers in the model.
    - **`mask_features`**: (boolean)
      If `true`, feature masking is applied during the explanation process.
+   - It should be set to `false` in this improve acc configuration.
    - **`feature_mask_marginalize`**: (boolean)
      If `true`, the explainer will marginalize the feature mask, adding noise to masked features.
 2. **Mask Initialization:**
@@ -111,17 +105,9 @@
      Coefficient for the Laplacian loss, which encourages connectedness in the graph structure.
 7. **Evaluation and Metrics:**
 
-   - **`eval_metrics`**: (list of strings) Metrics to evaluate the explanation. Available options include:
-
-     - `"fidelity_neg"`: Negative fidelity score.
-     - `"fidelity_pos"`: Positive fidelity score.
-     - `"characterization_score"`: Characterization score.
-     - `"fidelity_curve_auc"`: Area under the fidelity curve.
-     - `"unfaithfulness"`: Measure of unfaithfulness of the explanation.
-     - `"sparsity"`: Sparsity of the explanation.
+   - **`eval_metrics`**: (list of strings) Metrics to evaluate the explanation. In current improve acc setting, only Macro-F1 and Micro-F1 is supported. Available options include:
      - `"Macro-F1"`: Macro-F1 score.
      - `"Micro-F1"`: Micro-F1 score.
-     - `"roc_auc_score"`: ROC AUC score.
    - **`record_metrics`**: (list of strings)
      Metrics to record during training. Example: `["mask_density"]` tracks the density of the mask.
 8. **File Paths:**
