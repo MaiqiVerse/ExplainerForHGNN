@@ -194,7 +194,7 @@ def get_feature_mask_hard(explainer, opposite=False, separate=True):
         return None
 
     feature_mask = explainer.feature_mask_for_output
-    if len(feature_mask.shape) == 2:
+    if not isinstance(feature_mask, list) and len(feature_mask.shape) == 2:
         return full_feature_mask_hard(feature_mask, explainer, opposite, separate)
 
     if explainer.config['feature_mask_hard_method'] == 'threshold':
@@ -230,6 +230,12 @@ def get_feature_mask_hard(explainer, opposite=False, separate=True):
                 return [
                     fm > threshold for fm in feature_mask
                 ]
+        else:
+            threshold = torch.quantile(feature_mask,
+                                       explainer.config['threshold_percentage_feature'])
+            if opposite:
+                return feature_mask <= threshold
+            return feature_mask > threshold
     elif explainer.config['feature_mask_hard_method'] == 'original':
         if isinstance(feature_mask, list):
             if opposite:
