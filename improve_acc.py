@@ -53,7 +53,7 @@ def train_model(model_name, dataset_path, device, dataset_config=None,
                 model_config=None
                 ):
     dataset = load_dataset(dataset_path, dataset_config)
-    model = load_model(model_name, dataset, model_config)
+    model = load_model(model_name, dataset, model_config, device)
     model.to(device)
 
     # Train model
@@ -75,7 +75,7 @@ def explain(model, explainer_name, device, explainer_config=None, topk=0.75
             ):
     explainer = load_explainer(explainer_name, model.__class__.__name__,
                                model.dataset.__class__.__name__,
-                               explainer_config)
+                               explainer_config, device=device)
     if "top_k_for_edge_mask" in explainer.config:
         explainer.config["top_k_for_edge_mask"] = topk
     if "top_k_for_feature_mask" in explainer.config:

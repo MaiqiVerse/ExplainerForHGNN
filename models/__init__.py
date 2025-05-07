@@ -21,7 +21,7 @@ from .model import BaseModel
 from .han_gcn import HAN_GCN
 
 
-def load_model(model_name, dataset, model_config=None, is_load_model=False):
+def load_model(model_name, dataset, model_config=None, is_load_model=False, device=None):
     # load config first
     if model_config is not None:
         with open(model_config, "r") as f:
@@ -33,6 +33,9 @@ def load_model(model_name, dataset, model_config=None, is_load_model=False):
         with open(f"./model_configs/{model_name}_{dataset.dataset_name}.json",
                   "r") as f:
             config = json.load(f)
+
+    if device is not None:
+        config["device"] = device
 
     # enable reusing saved model
     if is_load_model and config.get("weight_path", None):
