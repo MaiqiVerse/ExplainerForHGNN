@@ -74,13 +74,16 @@ def load_default_config(explainer_name, model_name, dataset_name):
     return config
 
 
-def load_explainer(explainer_name, model_name, dataset_name, explainer_config=None):
+def load_explainer(explainer_name, model_name, dataset_name, explainer_config=None, device=None):
     # load config first
     if explainer_config is not None:
         with open(explainer_config, "r") as f:
             config = json.load(f)
     else:
         config = load_default_config(explainer_name, model_name, dataset_name)
+
+    if device is not None:
+        config["device"] = device
 
     if explainer_name == "GNNExplainerMeta":
         return GNNExplainerMeta(config)

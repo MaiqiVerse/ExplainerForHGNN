@@ -105,7 +105,8 @@ def train_model(model_name, dataset_path, device, dataset_configs=None,
     model_config = model_configs.__next__()
     dataset = load_dataset(dataset_path, dataset_config, is_load_dataset=is_load_dataset,
                            only_load_test_label_shuffle=only_load_test_label_shuffle)
-    model = load_model(model_name, dataset, model_config, is_load_model=is_load_model)
+    model = load_model(model_name, dataset, model_config, is_load_model=is_load_model,
+                       device=device)
     model.to(device)
 
     if is_load_model:
@@ -137,7 +138,8 @@ def explain(model, explainer_name, device, explainer_configs=None,
     explainer_config = explainer_configs.__next__()
     explainer = load_explainer(explainer_name, model.__class__.__name__,
                                model.dataset.__class__.__name__,
-                               explainer_config)
+                               explainer_config,
+                               device=device)
     explainer.to(device)
     result = explainer.explain(model, max_nodes=max_nodes)
     print("Explanation Summary:")
