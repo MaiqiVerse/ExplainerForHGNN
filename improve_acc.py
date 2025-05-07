@@ -53,7 +53,7 @@ def train_model(model_name, dataset_path, device, dataset_config=None,
                 model_config=None
                 ):
     dataset = load_dataset(dataset_path, dataset_config)
-    model = load_model(model_name, dataset, model_config, device)
+    model = load_model(model_name, dataset, model_config, device=device)
     model.to(device)
 
     # Train model
