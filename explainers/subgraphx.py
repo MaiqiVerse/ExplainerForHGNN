@@ -307,7 +307,8 @@ class SimpleMCTSFast:
                     flag = True
                     results.append(list(c))
             if not flag:
-                results.append([self.target_node])
+                results.append([])
+                print("Warning, there is no node in this subgraph")
         check_result = not all(
             len(i) == 1 for i in results
         )
@@ -327,6 +328,8 @@ class SimpleMCTSFast:
         result = [[] for _ in range(len(coalition))]
         subgraph = self._get_subgraph(coalition)
         for i, idx in all_nodes:
+            if idx == self.target_node:
+                continue
             degree = self._get_degree(subgraph, (i, idx))
             if degree > 0:
                 result[i].append(((i, idx), degree))
