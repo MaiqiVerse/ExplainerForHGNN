@@ -149,7 +149,7 @@ def main():
 
 
 def prepare_improve_acc_explainer_config(explainer_name, model_name, dataset_name):
-    default_folder = "./explainer_configs_for_improve_acc_retrain/"
+    default_folder = "./explainer_configs_for_improve_acc/"
     if not os.path.exists(default_folder):
         os.makedirs(default_folder)
 
@@ -220,7 +220,7 @@ def save_summary(summary, explainer, topk=0.75):
     :param explainer: an Explainer object
     """
     file_name = f"{explainer.__class__.__name__}_{explainer.model.__class__.__name__}_{explainer.model.dataset.__class__.__name__}_topk_{topk}_improvement_summary.json"
-    folder = "./improvement_summaries/"
+    folder = "./improvement_summaries_retrain/"
     if not os.path.exists(folder):
         os.makedirs(folder)
     with open(os.path.join(folder, file_name), "w") as f:
