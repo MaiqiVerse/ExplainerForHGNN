@@ -20,7 +20,7 @@ def get_args():
     parser = argparse.ArgumentParser(description='Improve model accuracy by denoising the neighborhood of target node')
     parser.add_argument('--model', type=str, default='HAN_GCN',
                         help='The model to be used for explanation')
-    parser.add_argument('--dataset', type=str, default='./data/ACM',
+    parser.add_argument('--dataset', type=str, default='../data/ACM',
                         help='Path to dataset, the folder name should be the same as the dataset name')
     parser.add_argument('--explainer', type=str, default='GNNExplainerMeta',
                         help='The explainer to be used for explanation')
