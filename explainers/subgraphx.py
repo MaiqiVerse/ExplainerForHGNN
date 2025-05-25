@@ -453,10 +453,11 @@ class SimpleMCTSFast:
         # Adjust steps_fast based on the size of the coalition
         coalition_size = len(sum(coalition, []))
 
-        # if coalition_size - self._threshold_ratio is more than 5 * steps_fast, then we need to adjust the steps_fast
-        if coalition_size - self._threshold_ratio > 5 * steps_fast:
+        # if coalition_size - self._threshold_ratio is more than 10 * steps_fast, then we need to adjust the steps_fast
+        if coalition_size - self._threshold_ratio > 10 * steps_fast:
             if self.tmp_steps_fast:
                 return self.tmp_steps_fast
+            # ensure only about 10 steps_fast
             steps_fast = int((coalition_size - self._threshold_ratio - 5 * steps_fast) / 5 / steps_fast) * steps_fast
             self.tmp_steps_fast = steps_fast
             return steps_fast
