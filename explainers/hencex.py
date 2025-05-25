@@ -899,3 +899,6 @@ class HENCEX(Explainer):
             os.makedirs(self.config['explanation_path'],
                         exist_ok=True)
             self.result.save(self.config['explanation_path'], **kwargs)
+
+    def core_class(self):
+        return HENCEXCore

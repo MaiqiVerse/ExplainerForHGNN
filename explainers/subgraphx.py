@@ -964,3 +964,10 @@ class SubgraphX(Explainer):
             os.makedirs(self.config['explanation_path'],
                         exist_ok=True)
             self.result.save(self.config['explanation_path'], **kwargs)
+
+    def core_class(self):
+        """
+        Return the core class of the explainer.
+        :return: The core class of the explainer.
+        """
+        return SubgraphXCore

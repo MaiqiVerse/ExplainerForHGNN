@@ -370,6 +370,10 @@ class RandomExplainer(Explainer):
             self.result.save(self.config['explanation_path'], **kwargs)
 
 
+    def core_class(self):
+        return RandomExplainerCore
+
+
 class RandomEdgeMaskExplainer(RandomExplainer):
     def __init__(self, config):
         super().__init__(config)

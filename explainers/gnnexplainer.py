@@ -632,6 +632,9 @@ class GNNExplainerMeta(Explainer):
                         exist_ok=True)
             self.result.save(self.config['explanation_path'], **kwargs)
 
+    def core_class(self):
+        return GNNExplainerMetaCore
+
 
 class GNNExplainerOriginalCore(ExplainerCore):
     def __init__(self, config):
@@ -1152,3 +1155,6 @@ class GNNExplainerOriginal(Explainer):
             import os
             os.makedirs(self.config['explanation_path'], exist_ok=True)
             self.result.save(self.config['explanation_path'], **kwargs)
+
+    def core_class(self):
+        return GNNExplainerOriginalCore

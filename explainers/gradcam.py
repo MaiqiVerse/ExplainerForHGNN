@@ -488,6 +488,9 @@ class GradCAM(Explainer):
                         exist_ok=True)
             self.result.save(self.config['explanation_path'], **kwargs)
 
+    def core_class(self):
+        return GradCAMCore
+
 
 class GradCAMOriginal(GradCAM):
     def __init__(self, config):
