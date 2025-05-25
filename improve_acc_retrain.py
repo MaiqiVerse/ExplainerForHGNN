@@ -108,14 +108,14 @@ def explain_model(explainer, model):
     val_labels = explainer.model.dataset.labels[1]
     test_labels = explainer.model.dataset.labels[2]
     explain_node_class = explainer.core_class()
-    for idx, label in tqdm.tqdm(enumerate(test_labels), total=len(test_labels), desc="Explaining test nodes"):
+    for idx, label in tqdm.tqdm(test_labels, total=len(test_labels), desc="Explaining test nodes"):
         explain_node = explain_node_class(explainer.config)
         explain_node.to(explainer.device)
         explanation = explain_node.explain(model, node_id=idx)
         result.append(explanation)
         result_nodes[idx] = explain_node
         result_dict[idx] = explanation
-    for idx, label in tqdm.tqdm(enumerate(train_labels + val_labels), total=len(train_labels + val_labels),
+    for idx, label in tqdm.tqdm(train_labels + val_labels, total=len(train_labels + val_labels),
                                 desc="Explaining train and validation nodes"):
         explain_node = explain_node_class(explainer.config)
         explain_node.to(explainer.device)
