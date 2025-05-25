@@ -13,8 +13,7 @@ from explainers import load_explainer
 from datasets import load_dataset
 from models import load_model
 from utils.retrain_utils import Retrain
-import explainers
-import importlib
+import tqdm
 
 
 def get_args():
@@ -109,14 +108,15 @@ def explain_model(explainer, model):
     val_labels = explainer.model.dataset.labels[1]
     test_labels = explainer.model.dataset.labels[2]
     explain_node_class = explainer.core_class()
-    for idx, label in test_labels:
+    for idx, label in tqdm.tqdm(enumerate(test_labels), total=len(test_labels), desc="Explaining test nodes"):
         explain_node = explain_node_class(explainer.config)
         explain_node.to(explainer.device)
         explanation = explain_node.explain(model, node_id=idx)
         result.append(explanation)
         result_nodes[idx] = explain_node
         result_dict[idx] = explanation
-    for idx, label in train_labels + val_labels + test_labels:
+    for idx, label in tqdm.tqdm(enumerate(train_labels + val_labels), total=len(train_labels + val_labels),
+                                desc="Explaining train and validation nodes"):
         explain_node = explain_node_class(explainer.config)
         explain_node.to(explainer.device)
         explanation = explain_node.explain(model, node_id=idx)
