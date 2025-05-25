@@ -256,7 +256,11 @@ class SimpleMCTSFast:
         self.root = SimpleMCTSNode([list(i.nodes()) for i in self.full_graph])
         self._register_node(self.root)
         self.coalition_max_size = coalition_max_size
-        self.steps_fast = steps_fast
+
+        # to avoid too many steps in fast mode
+        # we need to involve an adaptive step size
+        self.steps_fast_original = steps_fast
+
         self.ratio = ratio
         self.threshold = threshold
 
@@ -427,6 +431,9 @@ class SimpleMCTSFast:
         self.pbar.n = depth
         self.pbar.refresh()
 
+        # set the steps_fast to be a multiple time of the given steps_fast
+        self.steps_fast = self._adjust_steps_fast(self.steps_fast_original, node.coalition)
+
         if not self.check_coalition_size(node.coalition):
             return self.simulate(node)
 
@@ -442,6 +449,20 @@ class SimpleMCTSFast:
         self.backpropagate(node, value)
         return value
 
+    def _adjust_steps_fast(self, steps_fast, coalition):
+        # Adjust steps_fast based on the size of the coalition
+        coalition_size = len(sum(coalition, []))
+
+        # if coalition_size - self._threshold_ratio is more than 5 * steps_fast, then we need to adjust the steps_fast
+        if coalition_size - self._threshold_ratio > 5 * steps_fast:
+            if self.tmp_steps_fast:
+                return self.tmp_steps_fast
+            steps_fast = int((coalition_size - self._threshold_ratio - 5 * steps_fast) / 5 / steps_fast) * steps_fast
+            self.tmp_steps_fast = steps_fast
+            return steps_fast
+        else:
+            return steps_fast
+
     def check_coalition_size(self, coalition):
         return len(sum(coalition, [])) > self.min_size
 
@@ -451,6 +472,7 @@ class SimpleMCTSFast:
 
             # set self._avoid_warning to False
             self._avoid_warning = False
+            self.tmp_steps_fast = None  # reset tmp_steps_fast
 
             self.rollout()
 
