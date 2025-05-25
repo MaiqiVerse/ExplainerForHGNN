@@ -3,6 +3,7 @@ from datasets.dataset import NodeClassificationDataset
 from datasets import ACM, DBLP, IMDB
 from .utils import node_classification_support_metrics
 
+import copy
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -602,7 +603,7 @@ class HAN(BaseModel):
             print(display_str)
 
             if loss.item() < loss_compared:
-                self.temp_state_dict = self.state_dict()
+                self.temp_state_dict = copy.deepcopy(self.state_dict())
                 early_stopping = 0
                 loss_compared = loss.item()
             else:
