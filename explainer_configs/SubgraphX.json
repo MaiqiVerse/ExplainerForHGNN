@@ -3,7 +3,7 @@
     "mask_density"
   ],
   "extract_neighbors": true,
-  "n_hop": 2,
+  "n_hop": 1,
   "mask_features": true,
   "c_puct": 10.0,
   "min_size": 5,

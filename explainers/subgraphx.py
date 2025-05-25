@@ -455,10 +455,14 @@ class SimpleMCTSFast:
 
         # if coalition_size - self._threshold_ratio is more than 10 * steps_fast, then we need to adjust the steps_fast
         if coalition_size - self._threshold_ratio > 10 * steps_fast:
-            if self.tmp_steps_fast:
+            if self.tmp_steps_fast and self._count_steps_fast <= 5:
+                self._count_steps_fast += 1
                 return self.tmp_steps_fast
             # ensure only about 10 steps_fast
-            steps_fast = int((coalition_size - self._threshold_ratio - 5 * steps_fast) / 5 / steps_fast) * steps_fast
+            steps_fast = int((coalition_size - self._threshold_ratio - 5 * steps_fast) / 5)
+            # corner case, if coalition_size is so large that even after 5 steps_fast, it is still larger than 10 * steps_fast
+            self._count_steps_fast = 1
+
             self.tmp_steps_fast = steps_fast
             return steps_fast
         else:
@@ -691,7 +695,7 @@ class SubgraphXCore(ExplainerCore):
                                           self.mapping_node_id() in i
                                           ][0])
             graphs.append(nx_graph)
-        num_nodes = len(self.extract_neighbors_input()[1])
+        num_nodes = sum(len(g) for g in graphs)
         if not self.config.get('use_fast', True):
             self.mcts_tree = SimpleMCTS(
                 graphs, self.mapping_node_id(), reward_func,  # type: ignore
@@ -964,3 +968,10 @@ class SubgraphX(Explainer):
             os.makedirs(self.config['explanation_path'],
                         exist_ok=True)
             self.result.save(self.config['explanation_path'], **kwargs)
+
+    def core_class(self):
+        """
+        Return the core class of the explainer.
+        :return: The core class of the explainer.
+        """
+        return SubgraphXCore

@@ -277,3 +277,10 @@ class Explainer:
 
     def save_explanation(self):
         pass
+
+    def core_class(self):
+        """
+        Get the core class of the explainer.
+        :return:
+        """
+        return ExplainerCore
