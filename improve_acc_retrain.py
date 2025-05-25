@@ -108,9 +108,8 @@ def explain_model(explainer, model):
     train_labels = explainer.model.dataset.labels[0]
     val_labels = explainer.model.dataset.labels[1]
     test_labels = explainer.model.dataset.labels[2]
+    explain_node_class = explainer.core_class()
     for idx, label in test_labels:
-        node_name = f"{explainer.__class__.__name__}Core"
-        explain_node_class = importlib.import_module(f"explainers.{node_name}")
         explain_node = explain_node_class(explainer.config)
         explain_node.to(explainer.device)
         explanation = explain_node.explain(model, node_id=idx)
@@ -118,8 +117,6 @@ def explain_model(explainer, model):
         result_nodes[idx] = explain_node
         result_dict[idx] = explanation
     for idx, label in train_labels + val_labels + test_labels:
-        node_name = f"{explainer.__class__.__name__}Core"
-        explain_node_class = importlib.import_module(f"explainers.{node_name}")
         explain_node = explain_node_class(explainer.config)
         explain_node.to(explainer.device)
         explanation = explain_node.explain(model, node_id=idx)
