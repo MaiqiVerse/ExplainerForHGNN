@@ -308,7 +308,9 @@ class SimpleMCTSFast:
                     results.append(list(c))
             if not flag:
                 results.append([])
-                print("Warning, there is no node in this subgraph")
+                if not self._avoid_warning:
+                    print("Warning, there is no node in this subgraph")
+                    self._avoid_warning = True
         check_result = not all(
             len(i) == 1 for i in results
         )
@@ -446,6 +448,10 @@ class SimpleMCTSFast:
     def run(self):
         for _ in trange(self.rollout_limit, desc='MCTS'):
             self.pbar = tqdm(desc="MCTS Depth")
+
+            # set self._avoid_warning to False
+            self._avoid_warning = False
+
             self.rollout()
 
     def get_explained_nodes(self):
