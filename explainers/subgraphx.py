@@ -90,17 +90,17 @@ class SimpleMCTS:
             if not check_result:
                 continue
 
-            if self.check_coalition_size(final_coalition):
-                key = self._key(final_coalition)
-                if key in self.visited_states:
-                    new_node = self.visited_states[key]
-                else:
-                    new_node = SimpleMCTSNode(final_coalition, parent=node)
-                    new_node.P = self.score_func(final_coalition)
-                    self._register_node(new_node)
+            # if self.check_coalition_size(final_coalition):
+            key = self._key(final_coalition)
+            if key in self.visited_states:
+                new_node = self.visited_states[key]
+            else:
+                new_node = SimpleMCTSNode(final_coalition, parent=node)
+                new_node.P = self.score_func(final_coalition)
+                self._register_node(new_node)
 
-                if new_node not in node.children:
-                    node.children.append(new_node)
+            if new_node not in node.children:
+                node.children.append(new_node)
 
     def _check_connected(self, graphs):
         results = []
@@ -111,7 +111,10 @@ class SimpleMCTS:
                     flag = True
                     results.append(list(c))
             if not flag:
-                results.append([self.target_node])
+                results.append([])
+                if not self._avoid_warning:
+                    print("Warning, there is no node in this subgraph")
+                    self._avoid_warning = True
         check_result = not all(
             len(i) == 1 for i in results
         )
@@ -191,7 +194,10 @@ class SimpleMCTS:
         self.pbar.refresh()
 
         if not self.check_coalition_size(node.coalition):
-            return self.simulate(node)
+            # if coalition size is too small, return a small value
+            value = self.simulate(node)
+            self.backpropagation(node, value)
+            return value
 
         if not node.children:
             self.expand(node)
@@ -211,6 +217,9 @@ class SimpleMCTS:
     def run(self):
         for _ in trange(self.rollout_limit, desc='MCTS'):
             self.pbar = tqdm(desc="MCTS Depth")
+
+            # set self._avoid_warning to False
+            self._avoid_warning = False
             self.rollout()
 
     def get_explained_nodes(self):
@@ -221,7 +230,7 @@ class SimpleMCTS:
         all_nodes = sorted(all_nodes, key=lambda n: n.P, reverse=True)
         selected_node = None
         for i in range(len(all_nodes)):
-            if len(sum(all_nodes[i].coalition, [])) < ratio * self.num_nodes * len(all_nodes[i].coalition):
+            if len(sum(all_nodes[i].coalition, [])) < ratio * self.num_nodes:
                 selected_node = all_nodes[i]
                 break
         if selected_node is None:
@@ -266,7 +275,7 @@ class SimpleMCTSFast:
 
         self.num_nodes = num_nodes
         self._all_node_num = num_nodes
-        self._ratio_num = self._all_node_num * self.ratio * len(self.full_graph)
+        self._ratio_num = self._all_node_num * self.ratio
         self._threshold_ratio = self.threshold + self._ratio_num
         self.max_depth = max_depth
 
@@ -290,17 +299,17 @@ class SimpleMCTSFast:
             if not check_result:
                 continue
 
-            if self.check_coalition_size(final_coalition):
-                key = self._key(final_coalition)
-                if key in self.visited_states:
-                    new_node = self.visited_states[key]
-                else:
-                    new_node = SimpleMCTSNode(final_coalition, parent=node)
-                    new_node.P = self.score_func(final_coalition)
-                    self._register_node(new_node)
+            # if self.check_coalition_size(final_coalition):
+            key = self._key(final_coalition)
+            if key in self.visited_states:
+                new_node = self.visited_states[key]
+            else:
+                new_node = SimpleMCTSNode(final_coalition, parent=node)
+                new_node.P = self.score_func(final_coalition)
+                self._register_node(new_node)
 
-                if new_node not in node.children:
-                    node.children.append(new_node)
+            if new_node not in node.children:
+                node.children.append(new_node)
 
     def _check_connected(self, graphs):
         results = []
@@ -435,7 +444,9 @@ class SimpleMCTSFast:
         self.steps_fast = self._adjust_steps_fast(self.steps_fast_original, node.coalition)
 
         if not self.check_coalition_size(node.coalition):
-            return self.simulate(node)
+            value = self.simulate(node)
+            self.backpropagate(node, value)
+            return value
 
         if not node.children:
             self.expand(node)
