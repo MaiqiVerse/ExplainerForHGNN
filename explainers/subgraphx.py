@@ -712,7 +712,7 @@ class SubgraphXCore(ExplainerCore):
                 graphs, self.mapping_node_id(), reward_func,  # type: ignore
                 num_nodes,
                 c_puct=self.config.get('c_puct', 10.0),
-                min_size=num_nodes * self.config.get('top_k_for_feature_mask', 0.25) * len(graphs)
+                min_size=num_nodes * self.config.get('top_k_for_feature_mask', 0.25)
                          - self.config.get('min_size', 5),
                 rollout_limit=self.config.get('rollout_limit', 10),
                 coalition_max_size=self.config.get('coalition_max_size', 7))
@@ -721,7 +721,7 @@ class SubgraphXCore(ExplainerCore):
                 graphs, self.mapping_node_id(), reward_func,  # type: ignore
                 num_nodes,
                 c_puct=self.config.get('c_puct', 10.0),
-                min_size=num_nodes * self.config.get('top_k_for_feature_mask', 0.25) * len(graphs)
+                min_size=num_nodes * self.config.get('top_k_for_feature_mask', 0.25)
                          - self.config.get('min_size', 5),
                 rollout_limit=self.config.get('rollout_limit', 10),
                 coalition_max_size=self.config.get('coalition_max_size', 7),
