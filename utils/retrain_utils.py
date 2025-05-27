@@ -96,7 +96,7 @@ class Retrain:
 class CreateAbstract(ExplainerCore):
     def __init__(self, explainer_node):
         super(CreateAbstract, self).__init__(explainer_node.config)
-        self.move2cpu = False
+        self.move2cpu = True
         self.catch_necessary_data(explainer_node)
         self.prepare_custom_input_handle_fn()
 
