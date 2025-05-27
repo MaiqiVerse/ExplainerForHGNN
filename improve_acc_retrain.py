@@ -12,7 +12,7 @@ import json
 from explainers import load_explainer
 from datasets import load_dataset
 from models import load_model
-from utils.retrain_utils import Retrain
+from utils.retrain_utils import Retrain, CreateAbstract
 import tqdm
 import copy
 
@@ -114,8 +114,14 @@ def explain_model(explainer, model):
         explain_node.to(explainer.device)
         explanation = explain_node.explain(model, node_id=idx)
         result.append(explanation)
-        result_nodes[idx] = explain_node
+        # the original explanation may be too large, we only keep necessary data
+        result_nodes[idx] = CreateAbstract(explain_node)
         result_dict[idx] = explanation
+    result = explainer.construct_explanation(result)
+    explainer.result = result
+    explainer.evaluate()
+    explainer.save_summary()
+    clear_explanation(result, ["masked_gs_hard", "feature_mask_hard"])
     config_for_not_test = copy.deepcopy(explainer.config)
     # remove the evaluation part
     config_for_not_test["eval_metrics"] = []
@@ -126,13 +132,23 @@ def explain_model(explainer, model):
         explanation = explain_node.explain(model, node_id=idx)
         # here we still want to get the hard mask
         explanation = process_explanation(explanation, explain_node)
-        result_nodes[idx] = explain_node
+        result_nodes[idx] = CreateAbstract(explain_node)
         result_dict[idx] = explanation
-    result = explainer.construct_explanation(result)
-    explainer.result = result
-    explainer.evaluate()
-    explainer.save_summary()
     return result_dict, result_nodes
+
+
+def clear_explanation(explanation, keys_to_keep):
+    """
+    Clear the explanation by removing the keys that are not in keys_to_keep
+    :param explanation: a NodeExplanationCombination object
+    :param keys_to_keep: a list of keys to keep in the explanation
+    """
+    node_explanations = explanation.node_explanations
+    for node_explanation in node_explanations:
+        node_explanation._other_data = {
+            k: v for k, v in node_explanation._other_data.items() if k in keys_to_keep
+        }
+    return explanation
 
 
 def process_explanation(node_explanation, explainer):
@@ -141,43 +157,30 @@ def process_explanation(node_explanation, explainer):
     :param explainer: an Explainer object
     """
     from explainers.prepare_explanation_for_node_dataset_scores import get_masked_gs_hard, get_feature_mask_hard
+    flag = True
+    if "masked_gs_hard" not in node_explanation and getattr(explainer,
+                                                            'edge_mask_for_output',
+                                                            None) is not None:
+        masked_gs_hard = get_masked_gs_hard(explainer)
+        node_explanation.masked_gs_hard = masked_gs_hard
+        flag = False
+    elif "masked_gs_hard" in node_explanation:
+        flag = False
+    else:
+        node_explanation.masked_gs_hard = None
 
-    if "masked_pred_label_hard" not in node_explanation:
-        if "masked_pred_label" not in node_explanation:
-            flag = True
-            if "masked_gs_hard" not in node_explanation and getattr(explainer,
-                                                                    'edge_mask_for_output',
-                                                                    None) is not None:
-                masked_gs_hard = get_masked_gs_hard(explainer)
-                node_explanation.masked_gs_hard = masked_gs_hard
-                flag = False
-            elif "masked_gs_hard" in node_explanation:
-                flag = False
-            else:
-                node_explanation.masked_gs_hard = None
-
-            if "feature_mask_hard" not in node_explanation and getattr(explainer,
-                                                                       'feature_mask_for_output',
-                                                                       None) is not None:
-                feature_mask_hard = get_feature_mask_hard(explainer)
-                node_explanation.feature_mask_hard = feature_mask_hard
-                flag = False
-            elif "feature_mask_hard" in node_explanation:
-                flag = False
-            else:
-                node_explanation.feature_mask_hard = None
-            if flag:
-                raise ValueError('masked_gs_hard and feature_mask_hard are not found')
-
-            masked_pred_label = \
-                explainer.model.custom_forward(explainer.get_custom_input_handle_fn(
-                    node_explanation.masked_gs_hard,
-                    node_explanation.feature_mask_hard))[
-                    explainer.mapping_node_id()]
-            node_explanation.masked_pred_label = masked_pred_label
-
-        masked_pred_label_hard = node_explanation.masked_pred_label.argmax()
-        node_explanation.masked_pred_label_hard = masked_pred_label_hard
+    if "feature_mask_hard" not in node_explanation and getattr(explainer,
+                                                               'feature_mask_for_output',
+                                                               None) is not None:
+        feature_mask_hard = get_feature_mask_hard(explainer)
+        node_explanation.feature_mask_hard = feature_mask_hard
+        flag = False
+    elif "feature_mask_hard" in node_explanation:
+        flag = False
+    else:
+        node_explanation.feature_mask_hard = None
+    if flag:
+        raise ValueError('masked_gs_hard and feature_mask_hard are not found')
 
     return node_explanation
 
