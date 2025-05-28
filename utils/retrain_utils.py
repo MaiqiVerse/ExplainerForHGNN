@@ -35,7 +35,7 @@ class Retrain:
         return loss, result_collections, label_collections
 
     def fit(self):
-        optimizer = torch.optim.Adam(self.model.parameters(), lr=self.model.config['lr'],
+        optimizer = torch.optim.Adam(self.model.parameters(), lr=self.model.config['lr'] * 0.01,
                                      weight_decay=self.model.config['weight_decay'])
         loss_fn = nn.CrossEntropyLoss()
         self.loss_fn = loss_fn
@@ -66,7 +66,7 @@ class Retrain:
                 print(f"Validation Loss: {val_loss.item()}, Macro F1: {macro_f1}, Micro F1: {micro_f1}")
 
                 if val_loss.item() < loss_compared:
-                    self.temp_state_dict = copy.deepcopy(self.state_dict())
+                    self.temp_state_dict = copy.deepcopy(self.model.state_dict())
                     loss_compared = val_loss.item()
                     early_stopping = 0
                 else:
