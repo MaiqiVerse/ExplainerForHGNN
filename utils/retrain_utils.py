@@ -109,7 +109,8 @@ class CreateAbstract(ExplainerCore):
             if self.move2cpu:
                 self.gs = [g.cpu() for g in self.gs]
                 self.features = self.features.cpu()
-                self.extract_neighbors_input = lambda: (self.gs.to(self.device), self.features.to(self.device))
+                self.extract_neighbors_input = lambda: ([g.to(self.device) for g in self.gs],
+                                                        self.features.to(self.device))
             else:
                 self.extract_neighbors_input = lambda: (self.gs, self.features)
         elif self.abstract_explainer_node_name == "GradExplainerCore":
@@ -118,7 +119,8 @@ class CreateAbstract(ExplainerCore):
             if self.move2cpu:
                 self.gs = [g.cpu() for g in self.gs]
                 self.features = self.features.cpu()
-                self.extract_neighbors_input = lambda: (self.gs.to(self.device), self.features.to(self.device))
+                self.extract_neighbors_input = lambda: ([g.to(self.device) for g in self.gs],
+                                                        self.features.to(self.device))
             else:
                 self.extract_neighbors_input = lambda: (self.gs, self.features)
             self.support_multi_features = explainer_node.model.support_multi_features
@@ -129,7 +131,8 @@ class CreateAbstract(ExplainerCore):
             if self.move2cpu:
                 self.gs = [g.cpu() for g in self.gs]
                 self.features = self.features.cpu()
-                self.extract_neighbors_input = lambda: (self.gs.to(self.device), self.features.to(self.device))
+                self.extract_neighbors_input = lambda: ([g.to(self.device) for g in self.gs],
+                                                        self.features.to(self.device))
                 self.feature_mask_for_output_out = explainer_node.feature_mask_for_output.cpu()
             else:
                 self.extract_neighbors_input = lambda: (self.gs, self.features)
