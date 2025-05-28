@@ -102,6 +102,7 @@ class CreateAbstract(ExplainerCore):
 
     def catch_necessary_data(self, explainer_node):
         self.abstract_explainer_node_name = explainer_node.__class__.__name__
+        self.mapping_node_id = lambda : explainer_node.self.mapped_node_id
         # if self.abstract_explainer_node_name == 'GNNExplainerOriginalCore':
         if self.abstract_explainer_node_name in ['GNNExplainerOriginalCore', 'GNNExplainerMetaCore']:
             self.gs, self.features = explainer_node.extract_neighbors_input()
