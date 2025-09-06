@@ -1,0 +1,1 @@
+{"fidelity_neg": 0.03966942148760331, "fidelity_pos": 0.3933884297520661, "characterization_score": 0.558140860803903, "Macro-F1": 0.9019071077236624, "Micro-F1": 0.9008264462809917, "roc_auc_score": 0.9763216322829473, "fidelity_neg_model": 0.03966939449310303, "fidelity_pos_model": 0.42148762941360474}
