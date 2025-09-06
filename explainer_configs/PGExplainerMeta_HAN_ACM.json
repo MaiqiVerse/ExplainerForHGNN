@@ -11,7 +11,7 @@
   "coff_ent": 0.1,
   "coff_connect": 0.0,
   "budget": -1,
-  "use_pred_label": false,
+  "use_pred_label": true,
   "train_node_ids": null,
   "sample_train_nodes": 100,
   "record": false,
@@ -41,6 +41,5 @@
   "top_k_for_stability_edge": 0.25,
   "device": 0,
   "explanation_path": "explainer_results/{model_name}_{dataset_name}_PGExplainerMeta",
-  "sample_train_nodes": 100,
   "max_nodes": 200
 }
