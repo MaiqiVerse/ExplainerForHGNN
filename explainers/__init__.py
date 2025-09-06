@@ -14,7 +14,8 @@ __all__ = [
     "GNNExplainerOriginal",
     "GNNExplainerMetaCore",
     "GNNExplainerOriginalCore",
-    # "PGExplainer",
+    "PGExplainerNode",
+    "PGExplainerGraph",
     # "CGEExplainer",
     "Explainer",
     "ExplainerCore",
@@ -41,7 +42,9 @@ from .grad import GradExplainerMeta, GradExplainer, GradExplainerOriginal, \
 # from .subgraphx import SubgraphXExplainer
 from .gnnexplainer import GNNExplainerMeta, GNNExplainerOriginal, GNNExplainerMetaCore, \
                         GNNExplainerOriginalCore
-# from .pgexplainer import PGExplainer
+#from .pgexp2 import PGExplainer
+from .pgexplainer_node import PGExplainerNodeCore, PGExplainerMeta
+from .pgexplainer_graph import PGExplainerGraphCore
 # from .cge import CGEExplainer
 from .explainer import Explainer, ExplainerCore
 from .explanation import NodeExplanation, NodeExplanationCombination
@@ -127,8 +130,12 @@ def load_explainer(explainer_name, model_name, dataset_name, explainer_config=No
     #     return SubgraphXExplainer(config)
     # elif explainer_name == "GNNExplainer":
     #     return GNNExplainer(config)
-    # elif explainer_name == "PGExplainer":
-    #     return PGExplainer(config)
+    #elif explainer_name == "PGExplainerNode":
+    #    return PGExplainerNode(config)
+    elif explainer_name in ("PGExplainerMeta", "PGExplainerNode"):
+        return PGExplainerMeta(config)
+    elif explainer_name == "PGExplainerGraph":
+        return PGExplainerGraph(config)
     # elif explainer_name == "CGEExplainer":
     #     return CGEExplainer(config)
     else:
