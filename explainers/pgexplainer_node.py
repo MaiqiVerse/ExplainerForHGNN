@@ -19,7 +19,7 @@ class PGExplainerNodeCore(ExplainerCore):
         self.record_metrics = self.config.get("record_metrics", ["mask_density"])
         # > initialize subgraph cache
         self.subgraph_cache = {}
-        self.device_string = 'cuda' if torch.cuda.is_available() else 'cpu'
+        #self.device_string = 'cuda' if torch.cuda.is_available() else 'cpu' # AttributeError: can't set attribute 'device_string'
 
     def init_params_node_level(self, train_nodes=None):
         """
@@ -124,12 +124,14 @@ class PGExplainerNodeCore(ExplainerCore):
         self.recovery_dict = {node: i for i, node in enumerate(self.used_nodes)}
         
         # > construct quick transfer tensor
-        self._quick_transfer = torch.zeros(len(features), dtype=torch.long).to(self.device_string)
+        #self._quick_transfer = torch.zeros(len(features), dtype=torch.long).to(self.device_string) # AttributeError: can't set attribute 'device_string'
+        self._quick_transfer = torch.zeros(len(features), dtype=torch.long).to(self.device)
         for i, node in enumerate(self.used_nodes):
             self._quick_transfer[node] = i
 
         # > reconstruct subgraph sparse adj matrix
-        temp_used_nodes_tensor = torch.tensor(self.used_nodes).to(self.device_string)
+        #temp_used_nodes_tensor = torch.tensor(self.used_nodes).to(self.device_string) # AttributeError: can't set attribute 'device_string'
+        temp_used_nodes_tensor = torch.tensor(self.used_nodes).to(self.device)
         new_gs = []
         for g in gs:
             indices = g.indices()
@@ -137,7 +139,8 @@ class PGExplainerNodeCore(ExplainerCore):
             new_indices = torch.stack(
                 [self._quick_transfer[indices[0][mask]], self._quick_transfer[indices[1][mask]]],
                 dim=0
-            ).to(self.device_string)
+            #).to(self.device_string)  # AttributeError: can't set attribute 'device_string'
+            ).to(self.device)
             new_values = g.values()[mask]
             shape = torch.Size([len(self.used_nodes), len(self.used_nodes)])
             new_gs.append(torch.sparse_coo_tensor(new_indices, new_values, shape))
@@ -299,6 +302,8 @@ class PGExplainerNodeCore(ExplainerCore):
         train_nodes = self.config.get("train_node_ids", None)
         if train_nodes is None:
             train_nodes = [node for node, _ in self.model.dataset.labels[0]]
+        # > to avoid OOM for now
+        train_nodes = train_nodes[:200]
         
         # > initialize parametes and cache all the subgraphs
         self.init_params_node_level(train_nodes)
@@ -314,6 +319,9 @@ class PGExplainerNodeCore(ExplainerCore):
                 # > do not clear the cache. use the cached subgraphs
                 loss = self.forward_node_level()
                 total_loss = total_loss + loss
+
+            # > to avoid OOM for now
+            train_nodes = train_nodes[:200]
             
             total_loss = total_loss / len(train_nodes)
             
@@ -349,6 +357,25 @@ class PGExplainerNodeCore(ExplainerCore):
 
         explanation = NodeExplanation()
         explanation = standard_explanation(explanation, self)
+
+        # > attributes for fidelity
+        with torch.no_grad():
+            # > get original predictions
+            gs, features = self.extract_neighbors_input()
+            output_orig = self.model.custom_forward(lambda m: (gs, features))
+
+            # > get masked predictions
+            output_masked = self.model.custom_forward(lambda m: (self.masked["masked_gs"],
+                                                            self.masked["masked_features"]))
+
+            # > attributes
+            explanation.node_id = node_id
+            explanation.label = self._target_class_for_node(node_id)
+            explanation.masked_pred = output_masked
+            explanation.masked_pred_label_hard = output_masked.argmax(dim=1)
+            explanation.original_pred = output_orig
+            explanation.original_pred_label_hard = output_orig.argmax(dim=1)
+
         return explanation
 
     def mapping_node_id(self):
