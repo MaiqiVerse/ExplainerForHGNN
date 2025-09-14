@@ -371,24 +371,48 @@ class PGExplainerNodeCore(ExplainerCore):
             output_masked = self.model.custom_forward(lambda m: (self.masked["masked_gs"],
                                                             self.masked["masked_features"]))
 
+            # > get opposite masked predictions (complement of the mask)
+            # Get the original adjacency and create opposite mask
+            g0 = gs[0].coalesce()
+            adj = g0.to_dense()
+            opposite_mask = 1.0 - self.mask  # Complement of the mask
+            opposite_masked_adj = adj * opposite_mask
+            opposite_masked_adj.fill_diagonal_(0)
+
+            # Convert to sparse
+            try:
+                opposite_masked_sparse = opposite_masked_adj.to_sparse()
+            except AttributeError:
+                opposite_masked_sparse = opposite_masked_adj.to_sparse_coo()
+
+            # Get predictions with opposite mask
+            output_opposite_masked = self.model.custom_forward(
+                lambda m: ([opposite_masked_sparse], features)
+            )
+
             # > attributes
             explanation.node_id = node_id
             # Convert label to tensor
             explanation.label = torch.tensor(self._target_class_for_node(node_id), dtype=torch.long)
-            #explanation.label = self._target_class_for_node(node_id)
-            #explanation.masked_pred = output_masked
-            #explanation.masked_pred_label_hard = output_masked.argmax(dim=1)
-            #explanation.original_pred = output_orig
-            #explanation.original_pred_label_hard = output_orig.argmax(dim=1)
+            # Get the mapped node index for subgraph
+            mapped_idx = self.mapping_node_id()
             # original pred
-            explanation.pred = output_orig[self.mapping_node_id()]
+            #explanation.pred = output_orig[self.mapping_node_id()]
+            explanation.pred = output_orig[mapped_idx]
             # Keep as tensor, not .item()
             #explanation.pred_label_hard = output_orig[self.mapping_node_id()].argmax().item()
-            explanation.pred_label_hard = output_orig[self.mapping_node_id()].argmax(dim=0, keepdim=True)
-            # masked pred
-            explanation.masked_pred = output_masked[self.mapping_node_id()]
+            #explanation.pred_label_hard = output_orig[self.mapping_node_id()].argmax(dim=0, keepdim=True)
+            explanation.pred_label_hard = output_orig[mapped_idx].argmax(dim=0, keepdim=True)
+            # masked pred (with explanation mask)
+            #explanation.masked_pred = output_masked[self.mapping_node_id()]
+            explanation.masked_pred = output_masked[mapped_idx]
             #explanation.masked_pred_label_hard = output_masked[self.mapping_node_id()].argmax().item()
-            explanation.masked_pred_label_hard = output_masked[self.mapping_node_id()].argmax(dim=0, keepdim=True)
+            #explanation.masked_pred_label_hard = output_masked[self.mapping_node_id()].argmax(dim=0, keepdim=True)
+            explanation.masked_pred_label_hard = output_masked[mapped_idx].argmax(dim=0, keepdim=True)
+
+            # opposite masked pred (with complement of explanation mask)
+            explanation.opposite_masked_pred = output_opposite_masked[mapped_idx]
+            explanation.opposite_masked_pred_label_hard = output_opposite_masked[mapped_idx].argmax(dim=0, keepdim=True)
 
         return explanation
 
