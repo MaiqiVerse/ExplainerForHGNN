@@ -409,6 +409,7 @@ class PGExplainerNodeCore(ExplainerCore):
             #explanation.masked_pred_label_hard = output_masked[self.mapping_node_id()].argmax().item()
             #explanation.masked_pred_label_hard = output_masked[self.mapping_node_id()].argmax(dim=0, keepdim=True)
             explanation.masked_pred_label_hard = output_masked[mapped_idx].argmax(dim=0, keepdim=True)
+            explanation.masked_pred_label = output_masked[mapped_idx]
 
             # opposite masked pred (with complement of explanation mask)
             explanation.opposite_masked_pred = output_opposite_masked[mapped_idx]
