@@ -60,6 +60,9 @@ class PGExplainerNodeCore(ExplainerCore):
         Cache all caches of all nodes to avoid repetitive computation
         """
         print(f"Caching subgraphs for {len(node_list)} nodes...")
+        for i, node_id in enumerate(node_list):
+            if i % 20 == 0:
+                print(f"Cached {i}/{len(node_list)} nodes...")
         for node_id in node_list:
             if node_id not in self.subgraph_cache:
                 self.node_id = node_id
@@ -370,11 +373,22 @@ class PGExplainerNodeCore(ExplainerCore):
 
             # > attributes
             explanation.node_id = node_id
-            explanation.label = self._target_class_for_node(node_id)
-            explanation.masked_pred = output_masked
-            explanation.masked_pred_label_hard = output_masked.argmax(dim=1)
-            explanation.original_pred = output_orig
-            explanation.original_pred_label_hard = output_orig.argmax(dim=1)
+            # Convert label to tensor
+            explanation.label = torch.tensor(self._target_class_for_node(node_id), dtype=torch.long)
+            #explanation.label = self._target_class_for_node(node_id)
+            #explanation.masked_pred = output_masked
+            #explanation.masked_pred_label_hard = output_masked.argmax(dim=1)
+            #explanation.original_pred = output_orig
+            #explanation.original_pred_label_hard = output_orig.argmax(dim=1)
+            # original pred
+            explanation.pred = output_orig[self.mapping_node_id()]
+            # Keep as tensor, not .item()
+            #explanation.pred_label_hard = output_orig[self.mapping_node_id()].argmax().item()
+            explanation.pred_label_hard = output_orig[self.mapping_node_id()].argmax(dim=0, keepdim=True)
+            # masked pred
+            explanation.masked_pred = output_masked[self.mapping_node_id()]
+            #explanation.masked_pred_label_hard = output_masked[self.mapping_node_id()].argmax().item()
+            explanation.masked_pred_label_hard = output_masked[self.mapping_node_id()].argmax(dim=0, keepdim=True)
 
         return explanation
 
