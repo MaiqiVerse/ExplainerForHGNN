@@ -348,7 +348,21 @@ class PGExplainerNodeCore(ExplainerCore):
             total_loss = total_loss / len(train_nodes)
             
             optimizer.zero_grad()
-            total_loss.backward()
+            #total_loss.backward()
+            optimizer = torch.optim.Adam(self.elayers.parameters(), lr=self.config.get("opt_lr", 0.01))
+            for epoch in range(self.config.get("epochs", 30)):
+                epoch_loss = 0.0
+                for node_id in train_nodes:
+                    self.node_id = node_id
+                    optimizer.zero_grad()  # Clear gradients for each node
+                    loss = self.forward_node_level()
+                    loss.backward()  # Backward for single node
+                    optimizer.step()  # Update immediately
+                    epoch_loss += loss.item()
+
+                if epoch % 10 == 0:
+                    print(f"Epoch {epoch}: Avg Loss = {epoch_loss/len(train_nodes):.4f}")
+
             optimizer.step()
             
             self.current_loss = float(total_loss.detach().cpu())
