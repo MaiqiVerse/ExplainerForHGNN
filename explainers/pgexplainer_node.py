@@ -42,6 +42,17 @@ class PGExplainerNodeCore(ExplainerCore):
             nn.ReLU(),
             nn.Linear(64, 1)
         ).to(self.device)
+
+        # > better MLP initialization
+        for layer in self.elayers:
+            if isinstance(layer, nn.Linear):
+                nn.init.xavier_uniform_(layer.weight)
+                if layer.out_features == 1:
+                    # > initialize final layer to output positive values
+                    nn.init.constant_(layer.bias, 1.0)
+                else:
+                    nn.init.zeros_(layer.bias)
+
         self.elayers.train()
 
         # > loss coefficients
@@ -199,7 +210,11 @@ class PGExplainerNodeCore(ExplainerCore):
         selfemb = features[self.mapping_node_id()].repeat(f1.shape[0], 1)
         h = torch.cat([f1, f2, selfemb], dim=-1)
         values = self.elayers(h).squeeze()
+        if self.node_id == self.debug_node and hasattr(self, 'current_epoch'):
+            print(f"Epoch {self.current_epoch}: Values min={values.min():.4f}, max={values.max():.4f}, mean={values.mean():.4f}")
         sampled = self.concrete_sample(values, beta=self.tmp, training=True).to(target_dtype)
+        if self.node_id == self.debug_node and hasattr(self, 'current_epoch'):
+            print(f"  Sampled mask min={sampled.min():.4f}, max={sampled.max():.4f}, mean={sampled.mean():.4f}")
 
         # > use symetrized edge mask
         mask = torch.zeros_like(adj)
@@ -312,9 +327,13 @@ class PGExplainerNodeCore(ExplainerCore):
         self.init_params_node_level(train_nodes)
         
         optimizer = torch.optim.Adam(self.elayers.parameters(), lr=self.config.get("opt_lr", 0.01))
+
+        self.debug_node = train_nodes[0]  # Track first node for debugging
         
         # > training loop
         for epoch in range(self.config.get("epochs", 30)):
+            self.current_epoch = epoch
+
             total_loss = 0.0
             
             for node_id in train_nodes:
@@ -356,7 +375,65 @@ class PGExplainerNodeCore(ExplainerCore):
         if not hasattr(self, "elayers"):
             self.init_params_node_level()
 
-        _ = self.forward_node_level()
+        _ = self.forward_node_level() # > generate self.mask (soft mask)
+
+        # > the original soft mask
+        soft_mask = self.mask.clone()
+
+        # > convert to hard mask with sparsity of 25%
+        target_sparsity = self.config.get("top_k_for_edge_mask", 0.25)
+
+        # > get upper triangular indices (to avoid duplicate counting in undirected graphs)
+        n = soft_mask.shape[0]
+        #triu_indices = torch.triu_indices(n, n, offset=1)
+        triu_indices = torch.triu_indices(n, n, offset=1, device=soft_mask.device)
+        edge_values = soft_mask[triu_indices[0], triu_indices[1]]
+
+        # > calculate how many edges to keep
+        num_edges = edge_values.numel()
+
+        # > Handle edge cases
+        if num_edges == 0:
+            # > No edges in the subgraph
+            print(f"Node {node_id}: No edges in subgraph")
+            hard_mask = torch.zeros_like(soft_mask)
+        else:
+            k = int(num_edges * target_sparsity)
+            #k = max(1, k)
+            k = max(1, min(k, num_edges))  # Ensure k is between 1 and num_edges
+
+            # > Check if all edge values are zero (mask not learned)
+            if edge_values.max() == 0:
+                # > If soft mask is all zeros, select k random edges
+                print(f"Node {node_id}: Soft mask is all zeros, selecting random edges")
+                random_indices = torch.randperm(num_edges, device=soft_mask.device)[:k]
+                hard_mask = torch.zeros_like(soft_mask)
+                selected_edges = triu_indices[:, random_indices]
+                hard_mask[selected_edges[0], selected_edges[1]] = 1.0
+                hard_mask[selected_edges[1], selected_edges[0]] = 1.0
+            else:
+                # Normal case: select top-k edges
+
+                # > get top k values
+                topk_values, topk_indices = torch.topk(edge_values, k)
+
+                # > build hard mask
+                hard_mask = torch.zeros_like(soft_mask)
+                selected_edges = triu_indices[:, topk_indices]
+                hard_mask[selected_edges[0], selected_edges[1]] = 1.0
+                hard_mask[selected_edges[1], selected_edges[0]] = 1.0  # 对称
+
+        # > replace self.mask with hard mask
+        #self.mask = hard_mask  # standard_explanation
+        #self.soft_mask_backup = soft_mask  # backup soft mask
+
+            actual_sparsity = k / num_edges if num_edges > 0 else 0
+            print(f"Node {node_id}: Soft mask mean: {soft_mask.mean():.4f}, "
+                f"Hard mask sparsity: {actual_sparsity:.4f} (target: {target_sparsity})")
+
+        # > Replace self.mask with hard mask
+        self.mask = hard_mask
+        self.soft_mask_backup = soft_mask
 
         explanation = NodeExplanation()
         explanation = standard_explanation(explanation, self)
@@ -367,14 +444,25 @@ class PGExplainerNodeCore(ExplainerCore):
             gs, features = self.extract_neighbors_input()
             output_orig = self.model.custom_forward(lambda m: (gs, features))
 
-            # > get masked predictions
-            output_masked = self.model.custom_forward(lambda m: (self.masked["masked_gs"],
-                                                            self.masked["masked_features"]))
+            # > get masked predictions with hard mask
+            g0 = gs[0].coalesce()
+            adj = g0.to_dense()
+            # > Apply HARD mask for masked predictions
+            masked_adj = adj * self.mask  # Now using hard mask
+            masked_adj.fill_diagonal_(0)
+
+            try:
+                masked_sparse = masked_adj.to_sparse()
+            except AttributeError:
+                masked_sparse = masked_adj.to_sparse_coo()
+            #output_masked = self.model.custom_forward(lambda m: (self.masked["masked_gs"],
+                                                            #self.masked["masked_features"]))
+            output_masked = self.model.custom_forward(lambda m: ([masked_sparse], features))
 
             # > get opposite masked predictions (complement of the mask)
             # Get the original adjacency and create opposite mask
-            g0 = gs[0].coalesce()
-            adj = g0.to_dense()
+            #g0 = gs[0].coalesce()
+            #adj = g0.to_dense()
             opposite_mask = 1.0 - self.mask  # Complement of the mask
             opposite_masked_adj = adj * opposite_mask
             opposite_masked_adj.fill_diagonal_(0)
