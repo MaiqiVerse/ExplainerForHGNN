@@ -311,64 +311,61 @@ class PGExplainerNodeCore(ExplainerCore):
 
     def fit_node_level(self):
         """
-        traning loop. cache all the subgraphs in advance
+        Training loop with per-node updates to avoid gradient explosion
         """
         self.model.eval()
-        self._label_split_idx = 0  # use test labels
-        
-        # > get the test nodes
+        self._label_split_idx = 0  # use training labels
+    
+        # Get the training nodes
         train_nodes = self.config.get("train_node_ids", None)
         if train_nodes is None:
             train_nodes = [node for node, _ in self.model.dataset.labels[0]]
-        # > to avoid OOM for now
+        # To avoid OOM for now
         train_nodes = train_nodes[:200]
-        
-        # > initialize parametes and cache all the subgraphs
+    
+        # Initialize parameters and cache all the subgraphs
         self.init_params_node_level(train_nodes)
-        
+    
+        # Create optimizer ONCE
         optimizer = torch.optim.Adam(self.elayers.parameters(), lr=self.config.get("opt_lr", 0.01))
-
-        self.debug_node = train_nodes[0]  # Track first node for debugging
-        
-        # > training loop
-        for epoch in range(self.config.get("epochs", 30)):
+    
+        # Track first node for debugging
+        self.debug_node = train_nodes[0]
+    
+        # Training loop
+        for epoch in range(self.config.get("epochs", 50)):
             self.current_epoch = epoch
-
-            total_loss = 0.0
-            
+            epoch_loss = 0.0
+        
+            # Update per node (not accumulating gradients)
             for node_id in train_nodes:
                 self.node_id = node_id
-                # > do not clear the cache. use the cached subgraphs
+            
+                # Clear gradients for each node
+                optimizer.zero_grad()
+            
+                # Forward pass for single node
                 loss = self.forward_node_level()
-                total_loss = total_loss + loss
-
-            # > to avoid OOM for now
-            train_nodes = train_nodes[:200]
             
-            total_loss = total_loss / len(train_nodes)
+                # Backward pass for single node
+                loss.backward()
             
-            optimizer.zero_grad()
-            #total_loss.backward()
-            optimizer = torch.optim.Adam(self.elayers.parameters(), lr=self.config.get("opt_lr", 0.01))
-            for epoch in range(self.config.get("epochs", 30)):
-                epoch_loss = 0.0
-                for node_id in train_nodes:
-                    self.node_id = node_id
-                    optimizer.zero_grad()  # Clear gradients for each node
-                    loss = self.forward_node_level()
-                    loss.backward()  # Backward for single node
-                    optimizer.step()  # Update immediately
-                    epoch_loss += loss.item()
-
-                if epoch % 10 == 0:
-                    print(f"Epoch {epoch}: Avg Loss = {epoch_loss/len(train_nodes):.4f}")
-
-            optimizer.step()
+                # Gradient clipping to prevent explosion
+                torch.nn.utils.clip_grad_norm_(self.elayers.parameters(), max_norm=1.0)
             
-            self.current_loss = float(total_loss.detach().cpu())
+                # Update weights immediately
+                optimizer.step()
             
+                # Track loss for logging
+                epoch_loss += loss.item()
+        
+            # Calculate average loss for the epoch
+            avg_loss = epoch_loss / len(train_nodes)
+            self.current_loss = avg_loss
+        
+            # Print progress
             if epoch % 10 == 0:
-                print(f"Epoch {epoch}: Loss = {self.current_loss:.4f}")
+                print(f"Epoch {epoch}: Avg Loss = {avg_loss:.4f}")
 
     def explain(self, model, node_id):
         """
