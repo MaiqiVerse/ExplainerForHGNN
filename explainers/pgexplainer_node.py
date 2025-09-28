@@ -44,14 +44,14 @@ class PGExplainerNodeCore(ExplainerCore):
         ).to(self.device)
 
         # > better MLP initialization
-        for layer in self.elayers:
-            if isinstance(layer, nn.Linear):
-                nn.init.xavier_uniform_(layer.weight)
-                if layer.out_features == 1:
-                    # > initialize final layer to output positive values
-                    nn.init.constant_(layer.bias, 1.0)
-                else:
-                    nn.init.zeros_(layer.bias)
+        #for layer in self.elayers:
+        #    if isinstance(layer, nn.Linear):
+        #        nn.init.xavier_uniform_(layer.weight)
+        #        if layer.out_features == 1:
+        #            # > initialize final layer to output positive values
+        #            nn.init.constant_(layer.bias, 1.0)
+        #        else:
+        #            nn.init.zeros_(layer.bias)
 
         self.elayers.train()
 
@@ -187,18 +187,26 @@ class PGExplainerNodeCore(ExplainerCore):
         """Concrete distribution for edge mask sampling"""
         if training:
             bias = self.sample_bias
-            noise = torch.rand_like(log_alpha) * (1.0 - 2 * bias) + bias
-            gate_inputs = (torch.log(noise) - torch.log(1 - noise) + log_alpha) / beta
-            return torch.sigmoid(gate_inputs)
+            #noise = torch.rand_like(log_alpha) * (1.0 - 2 * bias) + bias
+            random_noise = torch.rand_like(log_alpha) * (1.0 - 2 * bias) + bias
+            random_noise = random_noise.clamp(min=1e-7, max=1-1e-7)  # to avoid log(0)
+            #gate_inputs = (torch.log(noise) - torch.log(1 - noise) + log_alpha) / beta
+            gate_inputs = torch.log(random_noise) - torch.log(1.0 - random_noise)
+            gate_inputs = (gate_inputs + log_alpha) / beta
+            gate_inputs = torch.sigmoid(gate_inputs)
+            #return torch.sigmoid(gate_inputs)
         else:
-            return torch.sigmoid(log_alpha)
+            gate_inputs = torch.sigmoid(log_alpha)
+            #return torch.sigmoid(log_alpha)
+        return gate_inputs
 
     def forward_node_level(self):
         """Forward pass for a single node"""
         gs, features = self.extract_neighbors_input()
         
         # > organize the data type
-        target_dtype = self.elayers[0].weight.dtype
+        #target_dtype = self.elayers[0].weight.dtype
+        target_dtype = torch.float32
         g0 = gs[0].coalesce()
         edge_index = g0.indices().long()
         adj = g0.to_dense().to(target_dtype)
@@ -207,12 +215,20 @@ class PGExplainerNodeCore(ExplainerCore):
         # > calculate edge importances
         f1 = features[edge_index[0]]
         f2 = features[edge_index[1]]
-        selfemb = features[self.mapping_node_id()].repeat(f1.shape[0], 1)
-        h = torch.cat([f1, f2, selfemb], dim=-1)
-        values = self.elayers(h).squeeze()
+        #selfemb = features[self.mapping_node_id()].repeat(f1.shape[0], 1)
+        selfemb = features[self.mapping_node_id()].unsqueeze(0).repeat(f1.shape[0], 1)
+        #h = torch.cat([f1, f2, selfemb], dim=-1)
+        f12self = torch.cat([f1, f2, selfemb], dim=-1)
+
+        # > MLP
+        h = self.elayers(f12self)
+        #values = self.elayers(h).squeeze()
+        values = h.squeeze(-1)
+
         if self.node_id == self.debug_node and hasattr(self, 'current_epoch'):
-            print(f"Epoch {self.current_epoch}: Values min={values.min():.4f}, max={values.max():.4f}, mean={values.mean():.4f}")
-        sampled = self.concrete_sample(values, beta=self.tmp, training=True).to(target_dtype)
+            print(f"Epoch {self.current_epoch}: Raw values min={values.min():.4f}, max={values.max():.4f}, mean={values.mean():.4f}")
+        #sampled = self.concrete_sample(values, beta=self.tmp, training=True).to(target_dtype)
+        sampled = self.concrete_sample(values, beta=self.tmp, training=True)
         if self.node_id == self.debug_node and hasattr(self, 'current_epoch'):
             print(f"  Sampled mask min={sampled.min():.4f}, max={sampled.max():.4f}, mean={sampled.mean():.4f}")
 
@@ -224,24 +240,15 @@ class PGExplainerNodeCore(ExplainerCore):
         masked_adj.fill_diagonal_(0)
 
         # > convert back to sparse
-        try:
-            masked_sparse = masked_adj.to_sparse()
-        except AttributeError:
-            masked_sparse = masked_adj.to_sparse_coo()
+        masked_sparse = masked_adj.to_sparse_coo()
 
-        self.masked = {
-            "masked_gs": [masked_sparse],
-            "masked_features": features,
-        }
-
-        def handle_fn(model):
-            return [masked_sparse], features
-
-        output = self.model.custom_forward(handle_fn)
+        output = self.model.custom_forward(lambda m: ([masked_sparse], features))
+        node_output = output[self.mapping_node_id()]
+        pred = F.softmax(node_output, dim=0)
 
         self.mask = mask
         self.masked_adj = masked_adj
-        self.pred = F.softmax(output[self.mapping_node_id()], dim=0)
+        self.pred = pred
         self.adj_tensor = adj
         
         return self.get_loss(self.pred)
@@ -253,9 +260,23 @@ class PGExplainerNodeCore(ExplainerCore):
         """
         Calculate loss
         """
-        label = self._target_class_for_node(self.node_id)
-        assert 0 <= label < pred.shape[0]
-        pred_loss = -torch.log(pred[label].clamp_min(1e-6))
+        if self.config.get("use_pred_label", False):
+            # > get original predictions
+            gs, features = self.extract_neighbors_input()
+            with torch.no_grad():
+                orig_output = self.model.custom_forward(lambda m: (gs, features))
+                pred_label = orig_output[self.mapping_node_id()].argmax().item()
+            target_class = pred_label
+        else:
+            target_class = self._target_class_for_node(self.node_id)
+
+        #label = self._target_class_for_node(self.node_id)
+        #assert 0 <= label < pred.shape[0]
+
+        logit = pred[target_class]
+        logit = logit.clamp(min=1e-6)  # to avoid log(0)
+        #pred_loss = -torch.log(pred[label].clamp_min(1e-6))
+        pred_loss = -torch.log(logit)
 
         # Size loss
         if self.coeffs["budget"] <= 0:
@@ -265,12 +286,21 @@ class PGExplainerNodeCore(ExplainerCore):
 
         # Entropy loss
         scale = 0.99
-        mask = self.mask * (2 * scale - 1.0) + (1.0 - scale)
-        ent_loss = -mask * torch.log(mask + 1e-6) - (1 - mask) * torch.log(1 - mask + 1e-6)
-        mask_ent_loss = self.coeffs["ent"] * torch.mean(ent_loss)
+        #mask = self.mask * (2 * scale - 1.0) + (1.0 - scale)
+        mask_for_ent = self.mask * (2 * scale - 1.0) + (1.0 - scale)
+        mask_for_ent = mask_for_ent.clamp(min=1e-7, max=1-1e-7)
+        #ent_loss = -mask * torch.log(mask + 1e-6) - (1 - mask) * torch.log(1 - mask + 1e-6)
+        mask_ent = -mask_for_ent * torch.log(mask_for_ent) - (1 - mask_for_ent) * torch.log(1 - mask_for_ent)
+        #mask_ent_loss = self.coeffs["ent"] * torch.mean(ent_loss)
+        mask_ent_loss = self.coeffs["ent"] * torch.mean(mask_ent)
+
 
         # L2 regularization
-        l2_loss = sum(torch.norm(p) for p in self.elayers.parameters() if p.requires_grad)
+        l2_loss = 0
+        #l2_loss = sum(torch.norm(p) for p in self.elayers.parameters() if p.requires_grad)
+        for param in self.elayers.parameters():
+            if len(param.shape) > 1:
+                l2_loss += torch.norm(param)
         l2_loss *= self.coeffs["weight_decay"]
         
         loss = pred_loss + size_loss + l2_loss + mask_ent_loss
