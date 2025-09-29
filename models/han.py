@@ -423,6 +423,21 @@ class HAN(BaseModel):
     <https://arxiv.org/pdf/1903.07293.pdf>`__
     """
 
+    # > added for pge
+    def embedding(self, custom_forward_fn):
+        """
+        Get the output of the last hidden layer (before the final classification layer)
+        """
+        g, h = custom_forward_fn(self) if callable(custom_forward_fn) else custom_forward_fn
+        
+        # > go through all the HAN layers but the final prediction layer
+        for gnn in self.layers:
+            h = gnn(g, h)
+        
+        # > return the output of the last HAN layer (embeddings)
+        # > shape: (N, hidden_units * num_heads[-1])
+        return h
+
     def __init__(self, config, dataset):
         super(HAN, self).__init__(config, dataset)
         assert self.dataset.hetero is True, "HAN only supports heterogeneous graph."

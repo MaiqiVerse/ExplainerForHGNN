@@ -33,8 +33,13 @@ class PGExplainerNodeCore(ExplainerCore):
         if train_nodes:
             self.node_id = train_nodes[0]
         gs, features = self.extract_neighbors_input()
-        
-        self.embedding_dim = features.shape[1]
+
+        # > get the actual embedding dimension from the model
+        with torch.no_grad():
+            embeddings = self.model.embedding(lambda m: (gs, features))
+            self.embedding_dim = embeddings.shape[1]  # > use embedding dimension not feature dimension
+            #self.embedding_dim = features.shape[1]
+        print(f"Embedding dimension: {self.embedding_dim}")
         
         # > define a 2-layer MLP to predict the importance of each edge
         self.elayers = nn.Sequential(
@@ -44,14 +49,14 @@ class PGExplainerNodeCore(ExplainerCore):
         ).to(self.device)
 
         # > better MLP initialization
-        #for layer in self.elayers:
-        #    if isinstance(layer, nn.Linear):
-        #        nn.init.xavier_uniform_(layer.weight)
+        for layer in self.elayers:
+            if isinstance(layer, nn.Linear):
+                nn.init.xavier_uniform_(layer.weight, gain=0.1)
         #        if layer.out_features == 1:
         #            # > initialize final layer to output positive values
         #            nn.init.constant_(layer.bias, 1.0)
         #        else:
-        #            nn.init.zeros_(layer.bias)
+                nn.init.zeros_(layer.bias)
 
         self.elayers.train()
 
@@ -208,6 +213,7 @@ class PGExplainerNodeCore(ExplainerCore):
         with torch.no_grad():
             embeddings = self.model.embedding(lambda m: (gs, features))
             embeddings = embeddings.detach()
+            embeddings = F.normalize(embeddings, p=2, dim=1)  # L2 normalize
         
         # > organize the data type
         #target_dtype = self.elayers[0].weight.dtype
@@ -234,10 +240,18 @@ class PGExplainerNodeCore(ExplainerCore):
         #values = self.elayers(h).squeeze()
         values = h.squeeze(-1)
 
+        #values = values * 0.1  # > scale down the logits
+        values = torch.clamp(values, min=-5, max=5)
+
         if self.node_id == self.debug_node and hasattr(self, 'current_epoch'):
             print(f"Epoch {self.current_epoch}: Raw values min={values.min():.4f}, max={values.max():.4f}, mean={values.mean():.4f}")
+        # Use temperature starting high and decreases
+        temperature = 1.0 if not hasattr(self, 'current_epoch') else max(0.1, 1.0 - self.current_epoch * 0.02)
+
         #sampled = self.concrete_sample(values, beta=self.tmp, training=True).to(target_dtype)
-        sampled = self.concrete_sample(values, beta=self.tmp, training=True)
+        #sampled = self.concrete_sample(values, beta=self.tmp, training=True)
+        sampled = self.concrete_sample(values, beta=temperature, training=True)
+
         if self.node_id == self.debug_node and hasattr(self, 'current_epoch'):
             print(f"  Sampled mask min={sampled.min():.4f}, max={sampled.max():.4f}, mean={sampled.mean():.4f}")
 
