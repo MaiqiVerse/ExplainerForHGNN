@@ -76,25 +76,34 @@ class PGExplainerNodeCore(ExplainerCore):
         Cache all caches of all nodes to avoid repetitive computation
         """
         print(f"Caching subgraphs for {len(node_list)} nodes...")
-        for i, node_id in enumerate(node_list):
-            if i % 20 == 0:
-                print(f"Cached {i}/{len(node_list)} nodes...")
-        for node_id in node_list:
-            if node_id not in self.subgraph_cache:
-                self.node_id = node_id
-                # > clear the previously cached 
-                self._clear_node_cache()
-                # > construct and cache the subgraph
-                gs, features = self._extract_and_cache_neighbors(node_id)
-                # > cache the infos
-                self.subgraph_cache[node_id] = {
-                    'gs': gs,
-                    'features': features,
-                    'mapped_node_id': self.mapping_node_id(),
-                    'used_nodes': getattr(self, 'used_nodes', None),
-                    'recovery_dict': getattr(self, 'recovery_dict', None),
-                    '_quick_transfer': getattr(self, '_quick_transfer', None)
-                }
+
+        # > Pre-compute all embeddings ONCE
+        with torch.no_grad():
+            for i, node_id in enumerate(node_list):
+                if i % 20 == 0:
+                    print(f"Cached {i}/{len(node_list)} nodes...")
+            #for node_id in node_list:
+                if node_id not in self.subgraph_cache:
+                    self.node_id = node_id
+                    # > clear the previously cached 
+                    self._clear_node_cache()
+                    # > construct and cache the subgraph
+                    gs, features = self._extract_and_cache_neighbors(node_id)
+
+                    # > pre-compute embeddings for this subgraph
+                    embeddings = self.model.embedding(lambda m: (gs, features))
+                    embeddings = embeddings.detach().cpu()  # store as CPU tensor
+
+                    # > cache the infos
+                    self.subgraph_cache[node_id] = {
+                        'gs': gs,
+                        'features': features,
+                        'embeddings': embeddings,
+                        'mapped_node_id': self.mapping_node_id(),
+                        'used_nodes': getattr(self, 'used_nodes', None),
+                        'recovery_dict': getattr(self, 'recovery_dict', None),
+                        '_quick_transfer': getattr(self, '_quick_transfer', None)
+                    }
         print(f"Subgraph caching completed!")
 
     def _clear_node_cache(self):
@@ -207,13 +216,26 @@ class PGExplainerNodeCore(ExplainerCore):
 
     def forward_node_level(self):
         """Forward pass for a single node"""
-        gs, features = self.extract_neighbors_input()
+        #gs, features = self.extract_neighbors_input()
 
         # > get MLP embeddings
-        with torch.no_grad():
-            embeddings = self.model.embedding(lambda m: (gs, features))
-            embeddings = embeddings.detach()
-            embeddings = F.normalize(embeddings, p=2, dim=1)  # L2 normalize
+        #with torch.no_grad():
+        #    embeddings = self.model.embedding(lambda m: (gs, features))
+        #    embeddings = embeddings.detach()
+        #    embeddings = F.normalize(embeddings, p=2, dim=1)  # L2 normalize
+
+        # Check if embeddings are cached
+        if self.node_id in self.subgraph_cache and 'embeddings' in self.subgraph_cache[self.node_id]:
+            cached = self.subgraph_cache[self.node_id]
+            gs = cached['gs']
+            features = cached['features']
+            embeddings = cached['embeddings'].to(self.device)  # Use pre-computed embeddings
+        else:
+            # Fall back to computing embeddings on the fly
+            gs, features = self.extract_neighbors_input()
+            with torch.no_grad():
+                embeddings = self.model.embedding(lambda m: (gs, features))
+                embeddings = embeddings.detach()
         
         # > organize the data type
         #target_dtype = self.elayers[0].weight.dtype
