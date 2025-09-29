@@ -519,13 +519,35 @@ class HAN(BaseModel):
             raise ValueError("Meta path should have at least one node type.")
 
         if len(meta_path) == 2:
-            index = edge_directions['edge_types'].index([meta_path[0], meta_path[1]])
+            #index = edge_directions['edge_types'].index([meta_path[0], meta_path[1]])
+            # > Yiran edited
+            etype = [meta_path[0], meta_path[1]]
+            if etype not in edge_directions['edge_types']:
+                raise ValueError(f"Edge type {etype} not found in edge_directions.\n"
+                                 f"Available types: {edge_directions['edge_types']}")
+            index = edge_directions['edge_types'].index(etype)
+
             return edges[index]
 
         # we need to use the multiplication of adjacency matrices to achieve the metapath
         for i in range(1, len(meta_path)):
-            index = edge_directions['edge_types'].index(
-                [meta_path[i - 1], meta_path[i]])
+            #index = edge_directions['edge_types'].index(
+            #    [meta_path[i - 1], meta_path[i]])
+            # > Yiran edited
+            etype = [meta_path[i - 1], meta_path[i]]
+            if etype not in edge_directions['edge_types']:
+                raise ValueError(f"Edge type {etype} not found in edge_directions.\n"
+                                 f"Available types: {edge_directions['edge_types']}")
+            index = edge_directions['edge_types'].index(etype)
+
+            # > Yiran added
+            if index >= len(edges):
+                raise IndexError(f"Index {index} is out of range for edges (length={len(edges)})."
+                                 f"\nmeta_path = {meta_path}"
+                                 f"\ncurrent edge_type = {[meta_path[i - 1], meta_path[i]]}"
+                                 f"\nall edge_types = {edge_directions['edge_types']}")
+
+
             if i == 1:
                 adj = edges[index]
             else:

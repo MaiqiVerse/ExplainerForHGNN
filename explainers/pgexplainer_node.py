@@ -203,6 +203,11 @@ class PGExplainerNodeCore(ExplainerCore):
     def forward_node_level(self):
         """Forward pass for a single node"""
         gs, features = self.extract_neighbors_input()
+
+        # > get MLP embeddings
+        with torch.no_grad():
+            embeddings = self.model.embedding(lambda m: (gs, features))
+            embeddings = embeddings.detach()
         
         # > organize the data type
         #target_dtype = self.elayers[0].weight.dtype
@@ -210,13 +215,17 @@ class PGExplainerNodeCore(ExplainerCore):
         g0 = gs[0].coalesce()
         edge_index = g0.indices().long()
         adj = g0.to_dense().to(target_dtype)
-        features = features.to(target_dtype)
+        #features = features.to(target_dtype)
+        embeddings = embeddings.to(target_dtype)
 
         # > calculate edge importances
-        f1 = features[edge_index[0]]
-        f2 = features[edge_index[1]]
+        #f1 = features[edge_index[0]]
+        #f2 = features[edge_index[1]]
+        f1 = embeddings[edge_index[0]]
+        f2 = embeddings[edge_index[1]]
         #selfemb = features[self.mapping_node_id()].repeat(f1.shape[0], 1)
-        selfemb = features[self.mapping_node_id()].unsqueeze(0).repeat(f1.shape[0], 1)
+        #selfemb = features[self.mapping_node_id()].unsqueeze(0).repeat(f1.shape[0], 1)
+        selfemb = embeddings[self.mapping_node_id()].unsqueeze(0).repeat(f1.shape[0], 1)
         #h = torch.cat([f1, f2, selfemb], dim=-1)
         f12self = torch.cat([f1, f2, selfemb], dim=-1)
 
