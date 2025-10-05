@@ -19,12 +19,35 @@ class PGExplainerNodeCore(ExplainerCore):
         self.record_metrics = self.config.get("record_metrics", ["mask_density"])
         # > initialize subgraph cache
         self.subgraph_cache = {}
-        #self.device_string = 'cuda' if torch.cuda.is_available() else 'cpu' # AttributeError: can't set attribute 'device_string'
+
+    def _set_hook_for_embedding(self):
+        """
+        Set hook to extract the embeddings from the model
+        """
+        def hook_fn(module, input, output):
+            self.temp_embeddings = input
+
+        # > register hook to the final linear layer, use model.children() to find the layer
+        module = self.model.children()[-1]
+        self.hook_handle = module.register_forward_hook(hook_fn)
+
+
+    def _clear_temp_embeddings(self):
+        if hasattr(self, 'temp_embeddings'):
+            del self.temp_embeddings
+
+    def _remove_hook(self):
+        if hasattr(self, 'hook_handle'):
+            self.hook_handle.remove()
+            del self.hook_handle
+            
 
     def init_params_node_level(self, train_nodes=None):
         """
         Initialize explainer MLP and cache all training subgraphs
         """
+        self._set_hook_for_embedding()
+
         # > if the train node list is provided, cache all subgraphs in advance
         if train_nodes is not None:
             self._cache_all_subgraphs(train_nodes)
@@ -36,9 +59,9 @@ class PGExplainerNodeCore(ExplainerCore):
 
         # > get the actual embedding dimension from the model
         with torch.no_grad():
-            embeddings = self.model.embedding(lambda m: (gs, features))
+            _ = self.model.custom_forward(lambda m: (gs, features))
+            embeddings = self.temp_embeddings
             self.embedding_dim = embeddings.shape[1]  # > use embedding dimension not feature dimension
-            #self.embedding_dim = features.shape[1]
         print(f"Embedding dimension: {self.embedding_dim}")
         
         # > define a 2-layer MLP to predict the importance of each edge
@@ -52,10 +75,6 @@ class PGExplainerNodeCore(ExplainerCore):
         for layer in self.elayers:
             if isinstance(layer, nn.Linear):
                 nn.init.xavier_uniform_(layer.weight, gain=0.1)
-        #        if layer.out_features == 1:
-        #            # > initialize final layer to output positive values
-        #            nn.init.constant_(layer.bias, 1.0)
-        #        else:
                 nn.init.zeros_(layer.bias)
 
         self.elayers.train()
@@ -152,13 +171,11 @@ class PGExplainerNodeCore(ExplainerCore):
         self.recovery_dict = {node: i for i, node in enumerate(self.used_nodes)}
         
         # > construct quick transfer tensor
-        #self._quick_transfer = torch.zeros(len(features), dtype=torch.long).to(self.device_string) # AttributeError: can't set attribute 'device_string'
         self._quick_transfer = torch.zeros(len(features), dtype=torch.long).to(self.device)
         for i, node in enumerate(self.used_nodes):
             self._quick_transfer[node] = i
 
         # > reconstruct subgraph sparse adj matrix
-        #temp_used_nodes_tensor = torch.tensor(self.used_nodes).to(self.device_string) # AttributeError: can't set attribute 'device_string'
         temp_used_nodes_tensor = torch.tensor(self.used_nodes).to(self.device)
         new_gs = []
         for g in gs:
@@ -167,7 +184,6 @@ class PGExplainerNodeCore(ExplainerCore):
             new_indices = torch.stack(
                 [self._quick_transfer[indices[0][mask]], self._quick_transfer[indices[1][mask]]],
                 dim=0
-            #).to(self.device_string)  # AttributeError: can't set attribute 'device_string'
             ).to(self.device)
             new_values = g.values()[mask]
             shape = torch.Size([len(self.used_nodes), len(self.used_nodes)])
@@ -204,25 +220,15 @@ class PGExplainerNodeCore(ExplainerCore):
             #noise = torch.rand_like(log_alpha) * (1.0 - 2 * bias) + bias
             random_noise = torch.rand_like(log_alpha) * (1.0 - 2 * bias) + bias
             random_noise = random_noise.clamp(min=1e-7, max=1-1e-7)  # to avoid log(0)
-            #gate_inputs = (torch.log(noise) - torch.log(1 - noise) + log_alpha) / beta
             gate_inputs = torch.log(random_noise) - torch.log(1.0 - random_noise)
             gate_inputs = (gate_inputs + log_alpha) / beta
             gate_inputs = torch.sigmoid(gate_inputs)
-            #return torch.sigmoid(gate_inputs)
         else:
             gate_inputs = torch.sigmoid(log_alpha)
-            #return torch.sigmoid(log_alpha)
         return gate_inputs
 
     def forward_node_level(self):
         """Forward pass for a single node"""
-        #gs, features = self.extract_neighbors_input()
-
-        # > get MLP embeddings
-        #with torch.no_grad():
-        #    embeddings = self.model.embedding(lambda m: (gs, features))
-        #    embeddings = embeddings.detach()
-        #    embeddings = F.normalize(embeddings, p=2, dim=1)  # L2 normalize
 
         # Check if embeddings are cached
         if self.node_id in self.subgraph_cache and 'embeddings' in self.subgraph_cache[self.node_id]:
@@ -234,11 +240,11 @@ class PGExplainerNodeCore(ExplainerCore):
             # Fall back to computing embeddings on the fly
             gs, features = self.extract_neighbors_input()
             with torch.no_grad():
-                embeddings = self.model.embedding(lambda m: (gs, features))
+                _ = self.model.custom_forward(lambda m: (gs, features))
+                embeddings = self.temp_embeddings
                 embeddings = embeddings.detach()
         
         # > organize the data type
-        #target_dtype = self.elayers[0].weight.dtype
         target_dtype = torch.float32
         g0 = gs[0].coalesce()
         edge_index = g0.indices().long()
@@ -247,12 +253,8 @@ class PGExplainerNodeCore(ExplainerCore):
         embeddings = embeddings.to(target_dtype)
 
         # > calculate edge importances
-        #f1 = features[edge_index[0]]
-        #f2 = features[edge_index[1]]
         f1 = embeddings[edge_index[0]]
         f2 = embeddings[edge_index[1]]
-        #selfemb = features[self.mapping_node_id()].repeat(f1.shape[0], 1)
-        #selfemb = features[self.mapping_node_id()].unsqueeze(0).repeat(f1.shape[0], 1)
         selfemb = embeddings[self.mapping_node_id()].unsqueeze(0).repeat(f1.shape[0], 1)
         #h = torch.cat([f1, f2, selfemb], dim=-1)
         f12self = torch.cat([f1, f2, selfemb], dim=-1)
@@ -270,8 +272,6 @@ class PGExplainerNodeCore(ExplainerCore):
         # Use temperature starting high and decreases
         temperature = 1.0 if not hasattr(self, 'current_epoch') else max(0.1, 1.0 - self.current_epoch * 0.02)
 
-        #sampled = self.concrete_sample(values, beta=self.tmp, training=True).to(target_dtype)
-        #sampled = self.concrete_sample(values, beta=self.tmp, training=True)
         sampled = self.concrete_sample(values, beta=temperature, training=True)
 
         if self.node_id == self.debug_node and hasattr(self, 'current_epoch'):
@@ -315,12 +315,8 @@ class PGExplainerNodeCore(ExplainerCore):
         else:
             target_class = self._target_class_for_node(self.node_id)
 
-        #label = self._target_class_for_node(self.node_id)
-        #assert 0 <= label < pred.shape[0]
-
         logit = pred[target_class]
         logit = logit.clamp(min=1e-6)  # to avoid log(0)
-        #pred_loss = -torch.log(pred[label].clamp_min(1e-6))
         pred_loss = -torch.log(logit)
 
         # Size loss
@@ -342,7 +338,6 @@ class PGExplainerNodeCore(ExplainerCore):
 
         # L2 regularization
         l2_loss = 0
-        #l2_loss = sum(torch.norm(p) for p in self.elayers.parameters() if p.requires_grad)
         for param in self.elayers.parameters():
             if len(param.shape) > 1:
                 l2_loss += torch.norm(param)
@@ -471,7 +466,6 @@ class PGExplainerNodeCore(ExplainerCore):
 
         # > get upper triangular indices (to avoid duplicate counting in undirected graphs)
         n = soft_mask.shape[0]
-        #triu_indices = torch.triu_indices(n, n, offset=1)
         triu_indices = torch.triu_indices(n, n, offset=1, device=soft_mask.device)
         edge_values = soft_mask[triu_indices[0], triu_indices[1]]
 
@@ -510,8 +504,6 @@ class PGExplainerNodeCore(ExplainerCore):
                 hard_mask[selected_edges[1], selected_edges[0]] = 1.0  # 对称
 
         # > replace self.mask with hard mask
-        #self.mask = hard_mask  # standard_explanation
-        #self.soft_mask_backup = soft_mask  # backup soft mask
 
             actual_sparsity = k / num_edges if num_edges > 0 else 0
             print(f"Node {node_id}: Soft mask mean: {soft_mask.mean():.4f}, "
@@ -547,8 +539,6 @@ class PGExplainerNodeCore(ExplainerCore):
 
             # > get opposite masked predictions (complement of the mask)
             # Get the original adjacency and create opposite mask
-            #g0 = gs[0].coalesce()
-            #adj = g0.to_dense()
             opposite_mask = 1.0 - self.mask  # Complement of the mask
             opposite_masked_adj = adj * opposite_mask
             opposite_masked_adj.fill_diagonal_(0)
@@ -571,17 +561,11 @@ class PGExplainerNodeCore(ExplainerCore):
             # Get the mapped node index for subgraph
             mapped_idx = self.mapping_node_id()
             # original pred
-            #explanation.pred = output_orig[self.mapping_node_id()]
             explanation.pred = output_orig[mapped_idx]
             # Keep as tensor, not .item()
-            #explanation.pred_label_hard = output_orig[self.mapping_node_id()].argmax().item()
-            #explanation.pred_label_hard = output_orig[self.mapping_node_id()].argmax(dim=0, keepdim=True)
             explanation.pred_label_hard = output_orig[mapped_idx].argmax(dim=0, keepdim=True)
             # masked pred (with explanation mask)
-            #explanation.masked_pred = output_masked[self.mapping_node_id()]
             explanation.masked_pred = output_masked[mapped_idx]
-            #explanation.masked_pred_label_hard = output_masked[self.mapping_node_id()].argmax().item()
-            #explanation.masked_pred_label_hard = output_masked[self.mapping_node_id()].argmax(dim=0, keepdim=True)
             explanation.masked_pred_label_hard = output_masked[mapped_idx].argmax(dim=0, keepdim=True)
             explanation.masked_pred_label = output_masked[mapped_idx]
 
@@ -656,14 +640,15 @@ class PGExplainerMeta(Explainer):
         explainer_core.to(self.device)
         explainer_core.model = self.model
 
-        # > 
         explainer_core.fit_node_level()
         
         # > explain the test nodes
         result = []
         test_labels = self.model.dataset.labels[2]
-        if kwargs.get("max_nodes"):
-            test_labels = test_labels[:kwargs["max_nodes"]]
+        
+        if kwargs.get('max_nodes', None) is not None \
+            and kwargs.get('max_nodes') < len(test_labels):
+            test_labels = test_labels[:kwargs.get('max_nodes')]
         
         for idx, _ in test_labels:
             explanation = explainer_core.explain(self.model, node_id=idx)
@@ -675,6 +660,24 @@ class PGExplainerMeta(Explainer):
         self.save_summary()
         return self.eval_result
 
+    def explain_selected_nodes(self, model, selected_nodes):
+        self.model = model
+        result = []
+        test_labels = self.model.dataset.labels[2]
+        for idx, label in test_labels:
+            if idx in selected_nodes:
+                explain_node = self.core_class()(self.config)
+                explain_node.to(self.device)
+                explanation = explain_node.explain(self.model, node_id=idx)
+                result.append(explanation)
+
+        result = self.construct_explanation(result)
+        self.result = result
+        self.evaluate()
+        self.save_summary()
+
+        return result
+
     def construct_explanation(self, result):
         """Combine all the explanation of all the nodes"""
         result = NodeExplanationCombination(node_explanations=result)
@@ -682,12 +685,33 @@ class PGExplainerMeta(Explainer):
             result.control_data = self.config["control_data"]
         return result
 
+    def graph_level_explain(self, **kwargs):
+        pass
+
     def evaluate(self):
-        """Evaluate the quality of the mask"""
         eval_result = {}
-        if self.config.get("eval_metrics"):
-            for metric in self.config["eval_metrics"]:
-                self.result = prepare_combined_explanation_fn_for_node_dataset_scores[metric](self.result, self)
+        if self.config.get('eval_metrics', None) is not None:
+            for metric in self.config['eval_metrics']:
+                self.result = prepare_combined_explanation_fn_for_node_dataset_scores[
+                    metric](self.result, self)
                 eval_result[metric] = node_dataset_scores[metric](self.result)
+
         self.eval_result = eval_result
         return eval_result
+
+    def save_summary(self):
+        if self.config.get('summary_path', None) is not None:
+            import os
+            os.makedirs(os.path.dirname(self.config['summary_path']), exist_ok=True)
+            import json
+            with open(self.config['summary_path'], 'w') as f:
+                json.dump(self.eval_result, f)
+
+    def save_explanation(self, **kwargs):
+        if self.config.get('explanation_path', None) is not None:
+            import os
+            os.makedirs(self.config['explanation_path'], exist_ok=True)
+            self.result.save(self.config['explanation_path'], **kwargs)
+
+    def core_class(self):
+        return PGExplainerNodeCore
