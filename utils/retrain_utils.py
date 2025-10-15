@@ -2,6 +2,7 @@ import copy
 import torch
 import torch.nn as nn
 import sklearn.metrics as metrics
+from tqdm import tqdm
 
 from explainers.explainer import ExplainerCore
 
@@ -27,7 +28,7 @@ class Retrain:
         result_collections = []
         label_collections = []
 
-        for idx, label in labels:
+        for idx, label in tqdm(labels):
             explainer = self.explainer_nodes[idx]
             node_explanation = self.explanations[idx]
             result_collections.append(model.custom_forward(explainer.get_custom_input_handle_fn(
