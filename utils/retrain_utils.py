@@ -13,6 +13,13 @@ class Retrain:
         self.explainer_nodes = explainer_nodes
         self.model = copy.deepcopy(self.explainer.model)
 
+        # reinitialize model parameters
+        def weight_reset(m):
+            if hasattr(m, 'reset_parameters'):
+                m.reset_parameters()
+
+        self.model.apply(weight_reset)
+
     def forward(self, labels):
 
         model = self.model
@@ -35,7 +42,7 @@ class Retrain:
         return loss, result_collections, label_collections
 
     def fit(self):
-        optimizer = torch.optim.Adam(self.model.parameters(), lr=self.model.config['lr'] * 0.01,
+        optimizer = torch.optim.Adam(self.model.parameters(), lr=self.model.config['lr'],
                                      weight_decay=self.model.config['weight_decay'])
         loss_fn = nn.CrossEntropyLoss()
         self.loss_fn = loss_fn
