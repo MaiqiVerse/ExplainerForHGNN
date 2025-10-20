@@ -209,7 +209,7 @@ def main():
         print(f"{key}: {value}")
 
     # Save the summary
-    save_summary(improvement_summary, explainer, args.topk)
+    save_summary(improvement_summary, explainer, args.topk, args.random_seed)
 
 
 def prepare_improve_acc_explainer_config(explainer_name, model_name, dataset_name):
@@ -277,13 +277,15 @@ def get_improvement_summary(explainer, retrain_result):
     }
 
 
-def save_summary(summary, explainer, topk=0.75):
+def save_summary(summary, explainer, topk=0.75, random_seed=None):
     """
     Save the summary to a file
     :param summary: a dictionary containing the summary
     :param explainer: an Explainer object
     """
-    file_name = f"{explainer.__class__.__name__}_{explainer.model.__class__.__name__}_{explainer.model.dataset.__class__.__name__}_topk_{topk}_improvement_summary.json"
+    if random_seed is None:
+        random_seed = "NA"
+    file_name = f"{explainer.__class__.__name__}_{explainer.model.__class__.__name__}_{explainer.model.dataset.__class__.__name__}_topk_{topk}_random_seed_{random_seed}_improvement_summary.json"
     folder = "./improvement_summaries_retrain/"
     if not os.path.exists(folder):
         os.makedirs(folder)
