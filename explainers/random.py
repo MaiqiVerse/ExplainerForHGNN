@@ -103,8 +103,14 @@ class RandomExplainerCore(ExplainerCore):
         new_gs = []
         for g in gs:
             indices = g.indices()
-            mask = torch.isin(indices[0], temp_used_nodes_tensor) & \
-                   torch.isin(indices[1], temp_used_nodes_tensor)
+            if self.n_hop == 1:
+                # only keep the edges connected to the target node
+                mask = (indices[0] == self.node_id) | (indices[1] == self.node_id)
+            else:
+                # we do not strict to only keep the edges in the paths between the target node and its neighbors, but keep all edges among
+                # the used nodes. This is to avoid too much computation in finding the corresponding edges.
+                mask = torch.isin(indices[0], temp_used_nodes_tensor) & \
+                    torch.isin(indices[1], temp_used_nodes_tensor)
             # use self._quick_transfer to speed up
             new_indices = torch.stack(
                 [self._quick_transfer[indices[0][mask]],

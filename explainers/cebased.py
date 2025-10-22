@@ -14,27 +14,38 @@ from .prepare_explanation_for_node_dataset_scores import \
 import torch
 from tqdm import tqdm
 
-try:
-    import owlapy
-    import owlapy.class_expression
-except ImportError:
-    print("Please install owlapy to use this explainer.")
-    print("You can install it by running: pip install owlapy")
-    print("However, newer versions of owlapy will make"
-          "owlapy.class_expression.nary_boolean_expression throw an error,\n please"
-          " remove the line 21 (assert len(self._operands)>1, "
-          "\"OWLNaryBooleanClassExpression requires at least one operand.\")")
-    raise ImportError("owlapy is not installed.")
+owlapy_imported = False
+dlsr = None
+owlapy = None
 
-from owlapy.render import DLSyntaxObjectRenderer
+def lazy_import_cebased():
+    global owlapy_imported, dlsr, owlapy
+    if owlapy_imported:
+        return owlapy, dlsr
+    owlapy_imported = True
+    try:
+        import owlapy
+        import owlapy.class_expression
+    except ImportError:
+        print("Please install owlapy to use this explainer.")
+        print("You can install it by running: pip install owlapy")
+        print("However, newer versions of owlapy will make"
+            "owlapy.class_expression.nary_boolean_expression throw an error,\n please"
+            " remove the line 21 (assert len(self._operands)>1, "
+            "\"OWLNaryBooleanClassExpression requires at least one operand.\")")
+        raise ImportError("owlapy is not installed.")
 
-dlsr = DLSyntaxObjectRenderer()
+    from owlapy.render import DLSyntaxObjectRenderer
+
+    dlsr = DLSyntaxObjectRenderer()
+    return owlapy, dlsr
 
 
 class CEBasedCore(ExplainerCore):
     def __init__(self, config):
         super().__init__(config)
         self.mother_explainer = None
+        lazy_import_cebased()
 
     def explain(self, model, **kwargs):
         self.model = model
@@ -127,9 +138,14 @@ class CEBasedCore(ExplainerCore):
         new_gs = []
         for g in gs:
             indices = g.indices()
-            # !TODO: Test it in the future, and then expand it to other algorithms
-            mask = torch.isin(indices[0], temp_used_nodes_tensor) & \
-                   torch.isin(indices[1], temp_used_nodes_tensor)
+            if self.n_hop == 1:
+                # only keep the edges connected to the target node
+                mask = (indices[0] == self.node_id) | (indices[1] == self.node_id)
+            else:
+                # we do not strict to only keep the edges in the paths between the target node and its neighbors, but keep all edges among
+                # the used nodes. This is to avoid too much computation in finding the corresponding edges.
+                mask = torch.isin(indices[0], temp_used_nodes_tensor) & \
+                    torch.isin(indices[1], temp_used_nodes_tensor)
             # use self._quick_transfer to speed up
             new_indices = torch.stack(
                 [self._quick_transfer[indices[0][mask]],
@@ -235,6 +251,7 @@ class CEBased(Explainer):
     """
     def __init__(self, config):
         super().__init__(config)
+        self.owlapy, self.dlsr = lazy_import_cebased()
 
     def explain(self, model, **kwargs):
         self.model = model

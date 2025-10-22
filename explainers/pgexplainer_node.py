@@ -180,7 +180,14 @@ class PGExplainerNodeCore(ExplainerCore):
         new_gs = []
         for g in gs:
             indices = g.indices()
-            mask = torch.isin(indices[0], temp_used_nodes_tensor) & torch.isin(indices[1], temp_used_nodes_tensor)
+            if self.n_hop == 1:
+                # only keep the edges connected to the target node
+                mask = (indices[0] == self.node_id) | (indices[1] == self.node_id)
+            else:
+                # we do not strict to only keep the edges in the paths between the target node and its neighbors, but keep all edges among
+                # the used nodes. This is to avoid too much computation in finding the corresponding edges.
+                mask = torch.isin(indices[0], temp_used_nodes_tensor) & \
+                    torch.isin(indices[1], temp_used_nodes_tensor)
             new_indices = torch.stack(
                 [self._quick_transfer[indices[0][mask]], self._quick_transfer[indices[1][mask]]],
                 dim=0
@@ -396,8 +403,9 @@ class PGExplainerNodeCore(ExplainerCore):
         # Initialize parameters and cache all the subgraphs
         self.init_params_node_level(train_nodes)
     
-        # Create optimizer ONCE
-        optimizer = torch.optim.Adam(self.elayers.parameters(), lr=self.config.get("opt_lr", 0.01))
+        # # Create optimizer ONCE
+        # optimizer = torch.optim.Adam(self.elayers.parameters(), lr=self.config.get("opt_lr", 0.01))
+        optimizer = self.build_optimizer(self.get_required_fit_params())
     
         # Track first node for debugging
         self.debug_node = train_nodes[0]
@@ -436,6 +444,9 @@ class PGExplainerNodeCore(ExplainerCore):
             # Print progress
             if epoch % 10 == 0:
                 print(f"Epoch {epoch}: Avg Loss = {avg_loss:.4f}")
+
+    def build_optimizer(self, params):
+        return torch.optim.Adam(params, lr=self.config.get("opt_lr", 0.01))
 
     def explain(self, model, node_id):
         """
@@ -584,41 +595,66 @@ class PGExplainerNodeCore(ExplainerCore):
         else:
             self.mapped_node_id = self.recovery_dict[self.node_id]
         return self.mapped_node_id
+    
 
-    def _label_from_split(self, nid, split_idx):
-        """Get node label from the specified data split"""
-        return dict(self.model.dataset.labels[split_idx])[nid]
+    @property
+    def edge_mask_for_output(self):
+        """Get the edge mask for output"""
+        return self.mask
 
-    def _get_label_lookup(self):
-        """Get the true labels"""
-        if not hasattr(self, "_label_lookup"):
-            split_idx = getattr(self, "_label_split_idx", 2)
-            self._label_lookup = dict(self.model.dataset.labels[split_idx])
-        return self._label_lookup
+    @property
+    def feature_mask_for_output(self):
+        """Get the feature mask for output"""
+        return None
 
-    def _get_pred_label_lookup(self):
-        """Get the predicted labels"""
-        if not hasattr(self, "_pred_label_lookup"):
-            gs, features = self.model.standard_input()
-            with torch.no_grad():
-                logits = self.model.custom_forward(lambda m: (gs, features))
-            self._pred_label_lookup = logits.argmax(dim=1).detach().cpu().tolist()
-        return self._pred_label_lookup
+    # def _get_label_lookup(self):
+    #     """Get the true labels"""
+    #     if not hasattr(self, "_label_lookup"):
+    #         split_idx = getattr(self, "_label_split_idx", 2)
+    #         self._label_lookup = dict(self.model.dataset.labels[split_idx])
+    #     return self._label_lookup
 
-    def _target_class_for_node(self, global_node_id, pred_on_masked=None):
-        """Get the label of the target node"""
-        if self.config.get("use_pred_label", False):
-            return int(self._get_pred_label_lookup()[int(global_node_id)])
-        else:
-            lookup = self._get_label_lookup()
-            return int(lookup[int(global_node_id)])
+    # def _get_pred_label_lookup(self):
+    #     """Get the predicted labels"""
+    #     if not hasattr(self, "_pred_label_lookup"):
+    #         gs, features = self.model.standard_input()
+    #         with torch.no_grad():
+    #             logits = self.model.custom_forward(lambda m: (gs, features))
+    #         self._pred_label_lookup = logits.argmax(dim=1).detach().cpu().tolist()
+    #     return self._pred_label_lookup
+
+    # def _target_class_for_node(self, global_node_id, pred_on_masked=None):
+    #     """Get the label of the target node"""
+    #     if self.config.get("use_pred_label", False):
+    #         return int(self._get_pred_label_lookup()[int(global_node_id)])
+    #     else:
+    #         lookup = self._get_label_lookup()
+    #         return int(lookup[int(global_node_id)])
 
     def get_required_fit_params(self):
         return list(self.elayers.parameters())
+    
+    def visualize(self):
+        # !TODO: finish it, but not now
+        pass
 
-    def get_input_handle_fn_node_level(self):
+    def get_custom_input_handle_fn(self, masked_gs=None, feature_mask=None):
+        """
+        Get the custom input handle function for the model.
+        :return:
+        """
+
         def handle_fn(model):
-            return self.extract_neighbors_input()
+            if model is None:
+                model = self.model
+            gs, features = self.extract_neighbors_input()
+            if masked_gs is not None:
+                gs = [i.to(self.device_string) for i in masked_gs]
+            if feature_mask is not None:
+                feature_mask_device = feature_mask.to(self.device_string)
+                features = features * feature_mask_device
+            return gs, features
+
         return handle_fn
 
 
