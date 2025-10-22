@@ -2,6 +2,7 @@
   "record_metrics": [
     "mask_density"
   ],
+  "n_hop": 1,
   "extract_neighbors": true,
   "mask_features": true,
   "feature_mask_marginalize": false,

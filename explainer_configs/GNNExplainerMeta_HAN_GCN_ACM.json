@@ -3,7 +3,7 @@
     "mask_density"
   ],
   "extract_neighbors": true,
-  "n_hop": 3,
+  "n_hop": 1,
   "init_strategy_for_edge": "normal",
   "use_mask_bias": false,
   "init_strategy_for_feature": "const",

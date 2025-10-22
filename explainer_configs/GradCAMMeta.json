@@ -3,7 +3,7 @@
     "mask_density"
   ],
   "extract_neighbors": true,
-  "n_hop": 2,
+  "n_hop": 1,
   "use_feature_mask": true,
   "use_label": false,
   "eval_metrics": [

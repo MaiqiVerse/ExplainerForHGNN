@@ -1,7 +1,7 @@
 {
   "record_metrics": ["mask_density"],
   "extract_neighbors": true,
-  "n_hop": 2,
+  "n_hop": 1,
   "epochs": 50,
   "opt_lr": 0.01,
   "tmp": 0.1,

@@ -2,6 +2,7 @@
   "record_metrics": [
     "mask_density"
   ],
+  "n_hop": 1,
   "extract_neighbors": true,
   "mask_features": true,
   "feature_mask_marginalize": false,
@@ -13,9 +14,9 @@
   ],
   "summary_path": "explainer_summary/HAN_GCN_ACM_GradExplainerMeta_summary.json",
   "edge_mask_hard_method": "top_k",
-  "top_k_for_edge_mask": 0.75,
+  "top_k_for_edge_mask": 0.85,
   "feature_mask_hard_method": "top_k",
-  "top_k_for_feature_mask": 0.75,
+  "top_k_for_feature_mask": 0.85,
   "threshold_percentage_edge": 0.5,
   "threshold_percentage_auc": [
     0.0,
