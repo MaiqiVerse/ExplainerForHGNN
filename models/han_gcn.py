@@ -301,8 +301,8 @@ class HAN_GCN(BaseModel):
         edges = self.dataset.edges
         edge_directions = self.dataset.edge_directions
 
-        if len(meta_path) < 1:
-            raise ValueError("Meta path should have at least one node type.")
+        if len(meta_path) <= 1:
+            raise ValueError("Meta path should have at least two node types.")
 
         if len(meta_path) == 2:
             index = edge_directions['edge_types'].index([meta_path[0], meta_path[1]])
