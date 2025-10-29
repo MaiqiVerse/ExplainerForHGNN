@@ -198,6 +198,8 @@ class XPathCore(ExplainerCore):
                         indices = self.extract_neighbors_input()[0][idx].indices()
                         mask = ((indices[0] == src) & (indices[1] == dst)) | \
                                ((indices[0] == dst) & (indices[1] == src))
+                        if len(torch.nonzero(mask)) == 0:
+                            continue
                         edge_indices = torch.nonzero(mask).squeeze()
                         for edge_index in edge_indices:
                             edge_mask[idx][edge_index] = 1
@@ -216,6 +218,8 @@ class XPathCore(ExplainerCore):
                         indices = self.extract_neighbors_input()[0][idx].indices()
                         mask = ((indices[0] == src) & (indices[1] == dst)) | \
                                ((indices[0] == dst) & (indices[1] == src))
+                        if len(torch.nonzero(mask)) == 0:
+                            continue
                         edge_indices = torch.nonzero(mask).squeeze()
                         for edge_index in edge_indices:
                             edge_mask[idx][edge_index] = 1
@@ -567,7 +571,7 @@ class XPath(Explainer):
 
         for idx, label in test_labels:
             explain_node = self.core_class()(self.config)
-            explain_node.to(self.device_string)
+            explain_node.to(self.device)
             explanation = explain_node.explain(self.model,
                                                node_id=idx)
             result.append(explanation)
@@ -589,7 +593,7 @@ class XPath(Explainer):
         for idx, label in test_labels:
             if idx in selected_nodes:
                 explain_node = self.core_class()(self.config)
-                explain_node.to(self.device_string)
+                explain_node.to(self.device)
                 explanation = explain_node.explain(self.model,
                                                    node_id=idx)
                 result.append(explanation)
