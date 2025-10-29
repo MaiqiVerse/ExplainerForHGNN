@@ -32,6 +32,8 @@ __all__ = [
     "RandomEdgeAndNodeMaskExplainer",
     "SubgraphX",
     "SubgraphXCore",
+    "XPath",
+    "XPathCore"
 ]
 
 from .grad import GradExplainerMeta, GradExplainer, GradExplainerOriginal, \
@@ -52,6 +54,7 @@ from .random import RandomExplainer, RandomExplainerCore, RandomEdgeMaskExplaine
 from .cebased import CEBased, CEBasedCore
 from .gradcam import GradCAM, GradCAMCore, GradCAMMeta, GradCAMOriginal
 from .subgraphx import SubgraphX, SubgraphXCore
+from .xpath import XPath, XPathCore
 import os
 
 
@@ -119,6 +122,8 @@ def load_explainer(explainer_name, model_name, dataset_name, explainer_config=No
         return GradCAMOriginal(config)
     elif explainer_name == "SubgraphX":
         return SubgraphX(config)
+    elif explainer_name == "XPath":
+        return XPath(config)
     # elif explainer_name == "SAExplainer":
     #     return SAExplainer(config)
     # elif explainer_name == "GOAtExplainer":
