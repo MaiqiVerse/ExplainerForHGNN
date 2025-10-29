@@ -1,17 +1,10 @@
-from collections import defaultdict
-
 from .explainer import Explainer, ExplainerCore
 from datasets import NodeClassificationDataset
 import torch
-import torch.nn.functional as fn
-import torch.nn as nn
-import math
-from .node_scores import node_scores
 from .node_dataset_scores import node_dataset_scores
 from .prepare_explanation_for_node_scores import standard_explanation
 from .prepare_combined_explanation_for_node_dataset_scores import \
     prepare_combined_explanation_fn_for_node_dataset_scores
-from .prepare_explanation_for_node_scores import prepare_explanation_fn_for_node_scores
 from .prepare_explanation_for_node_dataset_scores import \
     prepare_explanation_fn_for_node_dataset_scores
 from .explanation import NodeExplanation, NodeExplanationCombination
@@ -19,10 +12,6 @@ import random
 import torch.nn.functional as F
 import numpy as np
 import scipy
-
-
-def mean(iterable):
-    return sum(iterable) / len(iterable)
 
 
 class XPathCore(ExplainerCore):
@@ -177,6 +166,67 @@ class XPathCore(ExplainerCore):
             paths = new_paths[:self.config.get('max_paths_per_iteration', 5)]
         self.edge_mask = self.get_edge_masks_from_scored_paths(self.scored)
 
+    def get_edge_masks_from_scored_paths(self, scored):
+        scored_sorted = sorted(scored.keys(), key=lambda x: scored[x], reverse=True)
+        edge_mask = [torch.zeros(len(g.values())) for g in self.extract_neighbors_input()[0]]
+        for path in scored_sorted:
+            edge_mask = self.update_edge_mask_with_path(edge_mask, path)
+            if self.check_over_size(edge_mask):
+                break
+        return edge_mask
+    
+    def update_edge_mask_with_path(self, edge_mask, path):
+        metapaths = self.model.config['meta_paths']
+        for idx, metapath in enumerate(metapaths):
+            if len(metapath) <= len(path):
+                path_front = path[:len(metapath)]
+                valid = True
+                for node_id in path_front:
+                    node_type = self.model.dataset.node_types[node_id]
+                    if node_type != metapath[path_front.index(node_id)]:
+                        valid = False
+                        break
+                if valid:
+                    for i in range(len(path) - 1):
+                        src = path[i]
+                        dst = path[i + 1]
+                        indices = self.extract_neighbors_input()[0][idx].indices()
+                        mask = ((indices[0] == src) & (indices[1] == dst)) | \
+                               ((indices[0] == dst) & (indices[1] == src))
+                        edge_indices = torch.nonzero(mask).squeeze()
+                        for edge_index in edge_indices:
+                            edge_mask[idx][edge_index] = 1
+                            
+                path_end = path[-len(metapath):]
+                valid = True
+                for node_id in path_end:
+                    node_type = self.model.dataset.node_types[node_id]
+                    if node_type != metapath[path_end.index(node_id)]:
+                        valid = False
+                        break
+                if valid:
+                    for i in range(len(path) - 1):
+                        src = path[i]
+                        dst = path[i + 1]
+                        indices = self.extract_neighbors_input()[0][idx].indices()
+                        mask = ((indices[0] == src) & (indices[1] == dst)) | \
+                               ((indices[0] == dst) & (indices[1] == src))
+                        edge_indices = torch.nonzero(mask).squeeze()
+                        for edge_index in edge_indices:
+                            edge_mask[idx][edge_index] = 1
+        return edge_mask
+
+    def check_over_size(self, edge_mask):
+        total_edges = sum([mask.shape[0] for mask in edge_mask])
+        current_edges = sum([len(torch.nonzero(mask)) for mask in edge_mask])
+        if self.config.get('max_explanation_size', None) is not None:
+            percentage = self.config['max_explanation_size']
+        elif self.config.get('edge_mask_hard_method', None) == 'top_k':
+            percentage = self.config.get('top_k_for_edge_mask', 0.25)
+        if current_edges >= percentage * total_edges:
+            return True
+        return False
+
     def scored_path(self, paths, scored):
         scored_paths = []
         for path in paths:
@@ -299,14 +349,14 @@ class XPathCore(ExplainerCore):
             new_gs.append(torch.sparse_coo_tensor(
                 new_indices, new_values, shape))
 
-        return self.construct_metapath_subgraph(new_gs, _clone_dict, _reverse_clone_dict)
+        return self.construct_metapath_subgraph(new_gs, _clone_dict)
 
-    def construct_metapath_subgraph(self, gs, clone_dict=None, reverse_clone_dict=None):
+    def construct_metapath_subgraph(self, gs, clone_dict=None):
         if self.model.__class__.__name__ in ['HAN', 'HAN_GCN']:
             if isinstance(self.model.dataset, NodeClassificationDataset):
                 meta_paths = self.model.config['meta_paths']
                 gs = [self._edges_to_metapath_adjacency(meta_path, gs) for meta_path in
-                               meta_paths]  
+                      meta_paths]
                 tensor_gs = []
                 for i in range(len(gs)):
                     g = gs[i]
