@@ -14,6 +14,8 @@ __all__ = [
     "GNNExplainerOriginal",
     "GNNExplainerMetaCore",
     "GNNExplainerOriginalCore",
+    "GNNShap",
+    "GNNShapCore",
     # "PGExplainer",
     # "CGEExplainer",
     "Explainer",
@@ -55,6 +57,8 @@ from .cebased import CEBased, CEBasedCore
 from .gradcam import GradCAM, GradCAMCore, GradCAMMeta, GradCAMOriginal
 from .subgraphx import SubgraphX, SubgraphXCore
 from .xpath import XPath, XPathCore
+
+from .gnnshap import GNNShap, GNNShapCore
 import os
 
 
@@ -92,6 +96,8 @@ def load_explainer(explainer_name, model_name, dataset_name, explainer_config=No
         return GNNExplainerMeta(config)
     elif explainer_name == "GNNExplainerOriginal":
         return GNNExplainerOriginal(config)
+    elif explainer_name == "GNNShap":
+        return GNNShap(config)
     elif explainer_name == "GradExplainerMeta":
         return GradExplainerMeta(config)
     elif explainer_name == "GradExplainer":
