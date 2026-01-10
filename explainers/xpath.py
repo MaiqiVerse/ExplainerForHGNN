@@ -202,7 +202,7 @@ class XPathCore(ExplainerCore):
                 valid = True
                 for node_id in path_front:
                     # node_type = self.model.dataset.node_types[node_id]
-                    if node_id in self.used_nodes:
+                    if node_id < len(self.used_nodes):
                         node_type = self.model.dataset.node_types[self.used_nodes[node_id]]
                     else:
                         node_type = self.model.dataset.node_types[self.extended_used_nodes[node_id - len(self.used_nodes)]]
@@ -227,7 +227,7 @@ class XPathCore(ExplainerCore):
                 path_end = path[-len(metapath):]
                 valid = True
                 for node_id in path_end:
-                    if node_id in self.used_nodes:
+                    if node_id < len(self.used_nodes):
                         node_type = self.model.dataset.node_types[self.used_nodes[node_id]]
                     else:
                         node_type = self.model.dataset.node_types[self.extended_used_nodes[node_id - len(self.used_nodes)]]
