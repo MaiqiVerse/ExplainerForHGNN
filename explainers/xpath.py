@@ -182,7 +182,12 @@ class XPathCore(ExplainerCore):
             paths = new_paths
             depth += 1
             print(f'XPath: depth {depth}, current scored paths {len(self.scored)}')
+
+        print(f'Total scored paths: {len(self.scored)}')
         self.edge_mask = self.get_edge_masks_from_scored_paths(self.scored)
+        print('Edge mask before hardening:')
+        for mask in self.edge_mask:
+            print(mask.shape, torch.sum(mask).item())
 
     def get_edge_masks_from_scored_paths(self, scored):
         scored_sorted = sorted(scored.keys(), key=lambda x: scored[x], reverse=True)
