@@ -22,8 +22,7 @@
     "Micro-F1",
     "roc_auc_score",
     "fidelity_neg_model",
-    "fidelity_pos_model",
-    "sparsity"
+    "fidelity_pos_model"
   ],
   "summary_path": "explainer_summary/{model_name}_{dataset_name}_{explainer_name}_summary.json",
   "edge_mask_hard_method": "top_k",
