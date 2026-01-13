@@ -158,12 +158,14 @@ class GNNExplainerMetaCore(ExplainerCore):
 
         # self.edge_mask = [torch.nn.Parameter(em) for em in self.edge_mask]
         std = torch.nn.init.calculate_gain('relu') * math.sqrt(2.0 / (2 * num_node))
+        std = min(std, 0.1)
         if self.config['init_strategy_for_edge'] == 'normal':
             edge_mask_after_init = []
             for em in self.edge_mask:
+                init_em = torch.randn_like(em, device=self.model.device) * std
+                init_em = torch.clamp(init_em, -2.0, 2.0)
                 edge_mask_after_init.append(
-                    torch.nn.Parameter(
-                        torch.randn_like(em, device=self.model.device) * std))
+                    torch.nn.Parameter(init_em))
             self.edge_mask = edge_mask_after_init
 
         elif self.config['init_strategy_for_edge'] == 'const':
@@ -331,10 +333,13 @@ class GNNExplainerMetaCore(ExplainerCore):
         # pred = self.model.custom_forward(self.get_input_handle_fn())
         # transform to hard pred label
         pred_fixed = torch.argmax(output, dim=1)
+        valid_graph = 0
 
         laplacian_loss_all = 0
         for g in self.masked['masked_gs']:
             g = g.coalesce()
+            if g._nnz() == 0:   # no edges
+                continue
             indices = g.indices()
             values = g.values()
             degree = torch.sparse.sum(g, dim=0).to_dense()
@@ -347,9 +352,14 @@ class GNNExplainerMetaCore(ExplainerCore):
             pred = pred_fixed.float().view(-1, 1)
             pred_t = pred.t()
             laplacian_loss = (pred_t @ (torch.sparse.mm(L, pred))) / g._nnz()
+
+            valid_graph += 1
             laplacian_loss_all += laplacian_loss
 
-        laplacian_loss = laplacian_loss_all / len(self.masked['masked_gs'])
+        if valid_graph == 0:
+            valid_graph = 1
+
+        laplacian_loss = laplacian_loss_all / valid_graph
 
         loss = self.config['coff_normal'] * normal_loss + self.config[
             'coff_edge_size'] * edge_mask_size_loss + self.config[
@@ -405,9 +415,9 @@ class GNNExplainerMetaCore(ExplainerCore):
                 masked_gs = masked_gs.coalesce()
                 indices = masked_gs.indices()
                 values = masked_gs.values()
-                mask = indices[0] != indices[1]
-                indices = indices[:, mask]
-                values = values[mask]
+                # mask = indices[0] != indices[1]
+                # indices = indices[:, mask]
+                # values = values[mask]
                 masked_gs = torch.sparse_coo_tensor(indices, values, gs[i].shape)
 
                 masked_gs_generated.append(masked_gs)
