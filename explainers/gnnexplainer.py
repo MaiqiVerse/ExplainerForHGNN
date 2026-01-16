@@ -314,11 +314,15 @@ class GNNExplainerMetaCore(ExplainerCore):
             raise ValueError('edge mask activation {} not supported'.format(
                 self.config['edge_mask_activation']))
 
-        if self.config['feature_mask_use_sigmoid']:
-            feature_mask = fn.sigmoid(self.feature_mask[0])
+        if self.config['mask_features']:
+            if self.config['feature_mask_use_sigmoid']:
+                feature_mask = fn.sigmoid(self.feature_mask[0])
+            else:
+                feature_mask = self.feature_mask[0]
+            feature_mask_size_loss = torch.mean(feature_mask)
         else:
-            feature_mask = self.feature_mask[0]
-        feature_mask_size_loss = torch.mean(feature_mask)
+            feature_mask = None
+            feature_mask_size_loss = 0.0
 
         # mask_entropy_loss = torch.mean(-edge_mask * torch.log(edge_mask + 1e-6) - (1 - edge_mask) * torch.log(1 - edge_mask + 1e-6))
 
@@ -326,9 +330,12 @@ class GNNExplainerMetaCore(ExplainerCore):
             -em * torch.log(em + 1e-6) - (1 - em) * torch.log(1 - em + 1e-6)) for em in
             edge_mask])
 
-        feature_mask_entropy_loss = torch.mean(
-            -feature_mask * torch.log(feature_mask + 1e-6) - (
-                1 - feature_mask) * torch.log(1 - feature_mask + 1e-6))
+        if feature_mask is not None:
+            feature_mask_entropy_loss = torch.mean(
+                -feature_mask * torch.log(feature_mask + 1e-6) - (
+                    1 - feature_mask) * torch.log(1 - feature_mask + 1e-6))
+        else:
+            feature_mask_entropy_loss = 0.0
 
         # pred = self.model.custom_forward(self.get_input_handle_fn())
         # transform to hard pred label
