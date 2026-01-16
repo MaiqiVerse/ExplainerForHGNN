@@ -535,7 +535,14 @@ class GNNExplainerMetaCore(ExplainerCore):
                 model = self.model
             gs, features = self.extract_neighbors_input()
             if masked_gs is not None:
-                gs = [i.to(self.device_string) for i in masked_gs]
+                gs = []
+                for g in masked_gs:
+                    mask = g.values() != 0
+                    indices = g.indices()[:, mask]
+                    values = g.values()[mask]
+                    shape = g.shape
+                    gs.append(torch.sparse_coo_tensor(indices, values, shape))
+                gs = [i.to(self.device_string) for i in gs]
             if feature_mask is not None:
                 feature_mask_device = feature_mask.to(self.device_string)
                 features = features * feature_mask_device
