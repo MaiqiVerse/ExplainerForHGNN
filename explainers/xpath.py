@@ -201,58 +201,53 @@ class XPathCore(ExplainerCore):
     
     def update_edge_mask_with_path(self, edge_mask, path):
         metapaths = self.model.config['meta_paths']
+        
+        def get_global_node_id(local_id):
+            if local_id < len(self.used_nodes):
+                return self.used_nodes[local_id]
+            else:
+                return self.extended_used_nodes[local_id - len(self.used_nodes)]
+        
+        # 获取 path 中每个节点的类型
+        path_types = []
+        for node_id in path:
+            global_id = get_global_node_id(node_id)
+            node_type = self.model.dataset.node_types[global_id]
+            path_types.append(node_type)
+        
         for idx, metapath in enumerate(metapaths):
-            if len(metapath) <= len(path):
-                path_front = path[:len(metapath)]
-                valid = True
-                for node_id in path_front:
-                    # node_type = self.model.dataset.node_types[node_id]
-                    if node_id < len(self.used_nodes):
-                        node_type = self.model.dataset.node_types[self.used_nodes[node_id]]
-                    else:
-                        node_type = self.model.dataset.node_types[self.extended_used_nodes[node_id - len(self.used_nodes)]]
-                    if node_type != metapath[path_front.index(node_id)]:
-                        valid = False
-                        break
-                if valid:
-                    for i in range(len(path) - 1):
-                        src = path[i]
-                        dst = path[i + 1]
-                        indices = self.extract_neighbors_input()[0][idx].indices()
-                        mask = ((indices[0] == src) & (indices[1] == dst)) | \
-                               ((indices[0] == dst) & (indices[1] == src))
-                        if len(torch.nonzero(mask)) == 0:
-                            continue
-                        edge_indices = torch.nonzero(mask).squeeze()
-                        if edge_indices.dim() == 0:
-                            edge_indices = edge_indices.unsqueeze(0)
-                        for edge_index in edge_indices:
-                            edge_mask[idx][edge_index] = 1
-                            
-                path_end = path[-len(metapath):]
-                valid = True
-                for node_id in path_end:
-                    if node_id < len(self.used_nodes):
-                        node_type = self.model.dataset.node_types[self.used_nodes[node_id]]
-                    else:
-                        node_type = self.model.dataset.node_types[self.extended_used_nodes[node_id - len(self.used_nodes)]]
-                    if node_type != metapath[path_end.index(node_id)]:
-                        valid = False
-                        break
-                if valid:
-                    for i in range(len(path) - 1):
-                        src = path[i]
-                        dst = path[i + 1]
-                        indices = self.extract_neighbors_input()[0][idx].indices()
-                        mask = ((indices[0] == src) & (indices[1] == dst)) | \
-                               ((indices[0] == dst) & (indices[1] == src))
-                        if len(torch.nonzero(mask)) == 0:
-                            continue
-                        edge_indices = torch.nonzero(mask).squeeze()
-                        if edge_indices.dim() == 0:
-                            edge_indices = edge_indices.unsqueeze(0)
-                        for edge_index in edge_indices:
-                            edge_mask[idx][edge_index] = 1
+            mp_len = len(metapath)
+            
+            # 如果 path 比 metapath 短，无法匹配
+            if len(path) < mp_len:
+                continue
+            
+            # 在 path 中滑动窗口，找到所有匹配 metapath 的子序列
+            for i in range(len(path) - mp_len + 1):
+                sub_types = path_types[i:i + mp_len]
+                
+                # 检查类型序列是否匹配
+                if tuple(sub_types) == tuple(metapath):
+                    # 匹配成功！获取首尾节点
+                    src = path[i]
+                    dst = path[i + mp_len - 1]
+                    
+                    # 跳过涉及 extended 节点的边
+                    if src >= len(self.used_nodes) or dst >= len(self.used_nodes):
+                        continue
+                    
+                    # 在 metapath 子图中标记这条边
+                    indices = self.extract_neighbors_input()[0][idx].indices()
+                    mask = ((indices[0] == src) & (indices[1] == dst)) | \
+                        ((indices[0] == dst) & (indices[1] == src))
+                    
+                    if mask.sum() == 0:
+                        continue
+                    
+                    edge_indices = torch.nonzero(mask, as_tuple=False).flatten()
+                    for edge_index in edge_indices:
+                        edge_mask[idx][edge_index] = 1
+        
         return edge_mask
 
     def check_over_size(self, edge_mask):
@@ -738,7 +733,14 @@ class XPathCore(ExplainerCore):
                 model = self.model
             gs, features = self.extract_neighbors_input()
             if masked_gs is not None:
-                gs = [i.to(self.device_string) for i in masked_gs]
+                gs = []
+                for g in masked_gs:
+                    mask = g.values() != 0
+                    indices = g.indices()[:, mask]
+                    values = g.values()[mask]
+                    shape = g.shape
+                    gs.append(torch.sparse_coo_tensor(indices, values, shape))
+                gs = [i.to(self.device_string) for i in gs]
             if feature_mask is not None:
                 feature_mask_device = feature_mask.to(self.device_string)
                 features = features * feature_mask_device
