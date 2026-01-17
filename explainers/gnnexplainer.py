@@ -526,6 +526,8 @@ class GNNExplainerMetaCore(ExplainerCore):
     def feature_mask_for_output(self):
         if 'feature_mask' not in self.__dict__:
             return None
+        if not self.config['mask_features']:
+            return None
         if self.config['feature_mask_use_sigmoid']:
             return fn.sigmoid(self.feature_mask[0]).clone().detach()
         else:
