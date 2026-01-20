@@ -223,8 +223,14 @@ class RandomExplainerCore(ExplainerCore):
         def custom_input_handle_fn(model):
             gs, features = self.extract_neighbors_input()
             if masked_gs is not None:
-                gs = masked_gs
-                gs = [g.to(self.device_string) for g in gs]
+                gs = []
+                for g in masked_gs:
+                    mask = g.values() != 0
+                    indices = g.indices()[:, mask]
+                    values = g.values()[mask]
+                    shape = g.shape
+                    gs.append(torch.sparse_coo_tensor(indices, values, shape))
+                gs = [i.to(self.device_string) for i in gs]
             if feature_mask is not None:
                 if self.config.get('mask_type', "edge_mask") == "feature_mask":
                     if self.config.get('use_meta',
