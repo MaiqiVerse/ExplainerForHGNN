@@ -16,6 +16,8 @@ __all__ = [
     "GNNExplainerOriginalCore",
     "GNNShap",
     "GNNShapCore",
+    "GraphSVX",
+    "GraphSVXCore",
     # "PGExplainer",
     # "CGEExplainer",
     "Explainer",
@@ -62,6 +64,7 @@ from .xpath import XPath, XPathCore
 from .pgmexplainer import PGMExplainer, PGMExplainerCore
 
 from .gnnshap import GNNShap, GNNShapCore
+from .graphsvx import GraphSVX, GraphSVXCore
 import os
 
 
@@ -101,6 +104,8 @@ def load_explainer(explainer_name, model_name, dataset_name, explainer_config=No
         return GNNExplainerOriginal(config)
     elif explainer_name == "GNNShap":
         return GNNShap(config)
+    elif explainer_name == "GraphSVX":
+        return GraphSVX(config)
     elif explainer_name == "GradExplainerMeta":
         return GradExplainerMeta(config)
     elif explainer_name == "GradExplainer":
