@@ -64,6 +64,7 @@ def explain(model, explainer_name, device, max_nodes):
     from explainers import load_explainer
     explainer = load_explainer(explainer_name, model.__class__.__name__,
                                model.dataset.__class__.__name__)
+    explainer.config['extract_neighbors'] = False
     explainer.to(device)
     print("Explaining model...")
     explainer.explain(model, max_nodes=max_nodes)

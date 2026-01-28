@@ -55,7 +55,7 @@ def set_seed(seed, ensure_reproducibility=False):
 def train_model(model_name, dataset_path, device, dataset_config=None,
                 model_config=None
                 ):
-    dataset = load_dataset(dataset_path, dataset_config)
+    dataset = load_dataset(dataset_path, dataset_config, is_load_dataset=True, only_load_test_label_shuffle=True)
     model = load_model(model_name, dataset, model_config, device=device)
     model.to(device)
 
@@ -125,7 +125,7 @@ def explain_model(explainer, model):
     config_for_not_test = copy.deepcopy(explainer.config)
     # remove the evaluation part
     config_for_not_test["eval_metrics"] = []
-    for idx, label in tqdm.tqdm(train_labels + val_labels, total=len(train_labels + val_labels),
+    for idx, label in tqdm.tqdm(np.concatenate([train_labels, val_labels]), total=len(train_labels) + len(val_labels),
                                 desc="Explaining train and validation nodes"):
         explain_node = explain_node_class(config_for_not_test)
         explain_node.to(explainer.device)
@@ -187,13 +187,13 @@ def process_explanation(node_explanation, explainer):
 
 def main():
     args = get_args()
-    set_seed(args.random_seed, True)
+    set_seed(args.random_seed, False)
 
     # Set device
-    device = torch.device(f"cuda:{args.device}" if torch.cuda.is_available() else "cpu")
+    # device = torch.device(f"cuda:{args.device}" if torch.cuda.is_available() else "cpu")
 
     # Load model
-    model = train_model(args.model, args.dataset, device)
+    model = train_model(args.model, args.dataset, args.device)
 
     # Get the explanation for the target node
     explainer_config = prepare_improve_acc_explainer_config(args.explainer, args.model, args.dataset)

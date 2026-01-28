@@ -20,7 +20,7 @@
   "coff_edge_ent": 1.0,
   "coff_feature_ent": 0.1,
   "coff_laplacian": 1.0,
-  "mask_features": false,
+  "mask_features": true,
   "feature_mask_marginalize": false,
   "apply_mata_mask": true,
   "opt_lr": 0.1,
