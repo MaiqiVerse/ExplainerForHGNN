@@ -20,7 +20,7 @@ class IMDB(NodeClassificationDataset):
         self.num_features = self.node_features.shape[1]
 
         if self.config.get("test_label_shuffle", False):
-            self.labels[2] = np.array(random.sample(np.array(self.labels[2]).tolist(), len(self.labels[2])))
+            self.labels[2] = np.array(random.sample(np.array(self.labels[2]).tolist(), len(self.labels[2]))).tolist()
 
     def load_data(self):
         with open(self.node_features_path, 'rb') as f:
