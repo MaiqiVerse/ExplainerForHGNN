@@ -320,7 +320,7 @@ class GraphSVXCore(ExplainerCore):
                     gs.append(torch.sparse_coo_tensor(
                         indices, value, shape))
 
-                gs = [g.to(self.device_string) for g in masked_gs]
+                gs = [g.to(self.device_string) for g in gs]
             if feature_mask is not None:
                 feature_mask_device = feature_mask.to(self.device_string)
                 features = features * feature_mask_device
