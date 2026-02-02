@@ -880,7 +880,14 @@ class GNNShapCore(ExplainerCore):
             gs, feats = self.extract_neighbors_input()
 
             if masked_gs is not None:
-                gs = [g.to(self.device_string) for g in masked_gs]
+                gs = []
+                for g in masked_gs:
+                    mask = g.values() != 0
+                    indices = g.indices()[:, mask]
+                    values = g.values()[mask]
+                    shape = g.shape
+                    gs.append(torch.sparse_coo_tensor(indices, values, shape))
+                gs = [i.to(self.device_string) for i in gs]
 
             return gs, feats
 
