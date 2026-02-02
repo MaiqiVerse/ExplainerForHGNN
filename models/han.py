@@ -244,6 +244,7 @@ class GATConv(nn.Module):
             The error can be ignored by setting ``allow_zero_in_degree`` parameter to ``True``.
         """
         # if not self.allow_zero_in_degree and (g.sum(dim=1) == 0).any():
+        g = g.coalesce()
         if not self.allow_zero_in_degree and (torch.sparse.sum(g) == 0).any():
             raise ValueError(
                 "There are 0-in-degree nodes in the graph, output for those nodes will be invalid. Adding self-loops will resolve the issue.")
@@ -286,6 +287,8 @@ class GATConv(nn.Module):
             edge_weight = edge_weight.unsqueeze(1).expand(-1, self.num_heads)
             # edge_weight = torch.sparse_coo_tensor(g._indices(), edge_weight, shape)
             attention = attention * edge_weight
+        else:
+            attention = attention * g._values().unsqueeze(1).expand(-1, self.num_heads)
 
         h_prime = []
         for i in range(self.num_heads):
